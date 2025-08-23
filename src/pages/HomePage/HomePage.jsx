@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useAuth } from "../../lib/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 // Custom Button component
 function Button({ children, className = "", variant = "primary", ...props }) {
@@ -8,6 +10,8 @@ function Button({ children, className = "", variant = "primary", ...props }) {
     secondary: "bg-gray-800 text-yellow-500 border border-yellow-500 hover:bg-yellow-500 hover:text-black",
     outline: "border-2 border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-black"
   };
+
+
   
   return (
     <button
@@ -20,11 +24,26 @@ function Button({ children, className = "", variant = "primary", ...props }) {
 }
 
 const Homepage = () => {
+  const {user,userRole} = useAuth()
   const [isVisible, setIsVisible] = useState(false);
-  
+  const navigate = useNavigate()
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  useEffect(() => {
+    if (!user || !userRole) return;
+    if (userRole === "donor") {
+      navigate("/donor", { replace: true });
+    } else if (userRole === "recipient") {
+      navigate("/recipient", { replace: true });
+    } else if (userRole === "volunteer") {
+      navigate("/volunteer", { replace: true });
+    }
+    // If you want to handle other roles, add more cases here
+  }, [user, userRole, navigate]);
+
+
 
   return (
     <div className="font-inter bg-black text-white overflow-x-hidden">

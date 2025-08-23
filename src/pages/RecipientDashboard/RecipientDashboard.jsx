@@ -18,12 +18,19 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
 }
 
 export default function RecipientDashboard() {
-  const { userDetail: user } = useAuth();
-  console.log("Organisation", user);
+  const { userDetail: user, logout } = useAuth();
+  // ^^^ Make sure your AuthContext provides a logout method!
+  const [donationsStatus, setDonationsStatus] = useState({
+    posted: [],
+    diverted: [],
+    claimed: [],
+    picked: [],
+    delivered: [],
+  });
 
   // Lists by status
   const [posted, setPosted] = useState([]);
-  const [diverted, setDiverted] = useState([]); // only for non-edible/both orgs
+  const [diverted, setDiverted] = useState([]);
   const [claimed, setClaimed] = useState([]);
   const [picked, setPicked] = useState([]);
   const [delivered, setDelivered] = useState([]);
@@ -65,7 +72,6 @@ export default function RecipientDashboard() {
       } else if (canEdible && canNonEdible) {
         postedQuery = postedQuery.in("acceptance", ["edible", "non-edible"]);
       } else {
-        // unlikely, default to nothing
         postedQuery = postedQuery.eq("acceptance", "edible");
       }
 
@@ -217,7 +223,7 @@ export default function RecipientDashboard() {
         .from("donations")
         .update({ status: "claimed", organisation_id: orgId })
         .eq("id", donationId)
-        .in("status", ["posted", "diverted"]) // allow claim from both views
+        .in("status", ["posted", "diverted"])
         .is("organisation_id", null)
         .select("*")
         .maybeSingle();
@@ -369,8 +375,30 @@ export default function RecipientDashboard() {
     }
   }
 
+  // Logout Handler
+  const handleLogout = async () => {
+    if (logout) {
+      await logout();
+      // Optionally, redirect to login page here if you use react-router
+      // window.location.href = "/login";
+    } else {
+      await supabase.auth.signOut();
+      // window.location.href = "/login";
+    }
+  };
+
   return (
     <div className="p-6">
+      {/* Logout Button */}
+      <div className="flex justify-end mb-4">
+        <button
+          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          onClick={handleLogout}
+        >
+          Logout
+        </button>
+      </div>
+
       <h1 className="text-2xl font-bold mb-2">Nearby Donations</h1>
       <p className="text-sm text-gray-600 mb-4">
         View only the donations your organisation accepts. Non-edible organisations also see diverted items.

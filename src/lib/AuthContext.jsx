@@ -6,7 +6,7 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
-  const [userDetail,setUserDetail] = useState(null)
+  const [userDetail, setUserDetail] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,10 +22,11 @@ export const AuthProvider = ({ children }) => {
           .select("*")
           .eq('id', currentUser.id)
           .single();
-        setUserRole(data.role);
-        setUserDetail(data)
+        setUserRole(data?.role || null);
+        setUserDetail(data);
       } else {
         setUserRole(null);
+        setUserDetail(null);
       }
       setLoading(false);
     }
@@ -40,20 +41,33 @@ export const AuthProvider = ({ children }) => {
       if (newUser) {
         supabase
           .from("users")
-          .select("role")
+          .select("*")
           .eq('id', newUser.id)
           .single()
-          .then(({ data }) => setUserRole(data));
+          .then(({ data }) => {
+            setUserRole(data?.role || null);
+            setUserDetail(data);
+          });
       } else {
         setUserRole(null);
+        setUserDetail(null);
       }
     });
 
     return () => authListener.subscription.unsubscribe();
   }, []);
 
+  // Add logout function
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setUserRole(null);
+    setUserDetail(null);
+    setLoading(false);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, userRole,userDetail, loading }}>
+    <AuthContext.Provider value={{ user, userRole, userDetail, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );

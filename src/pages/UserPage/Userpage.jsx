@@ -27,6 +27,11 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+// Utility function for expired status
+function isExpired(expiry) {
+  return Date.now() > new Date(expiry).getTime();
+}
+
 const chartData = [
   { month: "Jan", donations: 5 },
   { month: "Feb", donations: 8 },
@@ -38,7 +43,8 @@ const chartData = [
 
 export default function UserPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  // ^^^ Make sure your AuthContext provides a logout method!
 
   const [donations, setDonations] = useState([]);
   const [nearestOrgs, setNearestOrgs] = useState([]);
@@ -49,7 +55,6 @@ export default function UserPage() {
   const [claimed, setClaimed] = useState([]);
   const [delivered, setDelivered] = useState([]);
 
-  console.log("Donations",donations)
   // Fetch all donations by this user and update live
   useEffect(() => {
     const userId = user?.id;
@@ -104,6 +109,23 @@ export default function UserPage() {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  // Auto update expired donations in DB
+  useEffect(() => {
+    async function updateExpiredDonations() {
+      const now = new Date();
+      const expiredDonations = donations.filter(
+        (d) => new Date(d.expiry) < now && d.status !== "expired"
+      );
+      for (const donation of expiredDonations) {
+        await supabase
+          .from("donations")
+          .update({ status: "expired", updated_at: new Date().toISOString() })
+          .eq("id", donation.id);
+      }
+    }
+    if (donations.length > 0) updateExpiredDonations();
+  }, [donations]);
 
   // Categorize donations into unclaimed, claimed, delivered
   useEffect(() => {
@@ -162,12 +184,23 @@ export default function UserPage() {
     fetchOrgs();
   }, [userLoc]);
 
+  // Handle logout
+  const handleLogout = async () => {
+    if (logout) {
+      await logout(); // If your AuthContext uses a promise
+    } else {
+      // fallback: supabase sign out
+      await supabase.auth.signOut();
+    }
+    navigate("/login");
+  };
+
   return (
     <div className="min-h-screen bg-black text-yellow-400 flex flex-col">
       {/* Navbar */}
       <nav className="flex justify-between items-center p-4 border-b border-yellow-400">
         <div className="text-2xl font-bold">ShareBite</div>
-        <div className="space-x-6 text-lg">
+        <div className="space-x-6 text-lg flex items-center">
           <button
             className="hover:text-white"
             onClick={() => navigate("/DonationForm")}
@@ -175,16 +208,20 @@ export default function UserPage() {
             Donate
           </button>
           <button
-  className="hover:text-white"
-  onClick={() => navigate("/analytics")}
->
-  Analytics
-</button>
-
+            className="hover:text-white"
+            onClick={() => navigate("/analytics")}
+          >
+            Analytics
+          </button>
           <button className="hover:text-white">Green Score</button>
+          <button
+            className="hover:text-white border border-yellow-400 rounded px-3 py-1 ml-4"
+            onClick={handleLogout}
+          >
+            Logout
+          </button>
         </div>
       </nav>
-
 
       {/* Hero / Welcome Section */}
       <header className="flex flex-col items-center justify-center py-16 bg-black text-yellow-400 rounded-b-3xl shadow-lg">
@@ -197,7 +234,7 @@ export default function UserPage() {
       </header>
 
       {/* Analytics Section */}
-     <section className="flex flex-col items-center justify-center py-12">
+      <section className="flex flex-col items-center justify-center py-12">
         <button
           onClick={() => navigate("/DonationForm")}
           className="bg-yellow-400 text-black px-10 py-5 text-2xl rounded-full font-extrabold shadow-lg hover:bg-yellow-500 transition"
@@ -220,75 +257,84 @@ export default function UserPage() {
       </section>
 
       {/* Donations Section */}
-     <section className="p-8">
-  <div className="bg-gray-900 p-6 rounded-xl shadow-lg">
-    <h2 className="text-2xl font-bold mb-6">Your Donations</h2>
-    
-    {/* Grid container for horizontal layout */}
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      
-      {/* Unclaimed Donations */}
-      <div className="bg-gray-800 p-6 rounded-xl">
-        <h3 className="text-xl font-semibold mb-4 text-yellow-300">Unclaimed Donations</h3>
-        {unclaimed.length === 0 ? (
-          <p className="text-gray-400 mb-4">No unclaimed donations.</p>
-        ) : (
-          <ul className="space-y-4">
-            {unclaimed.map((d) => (
-              <li key={d.id} className="border p-4 rounded-lg bg-gray-700">
-                <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
-                <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
-                <br />
-                <span className="block mt-1 font-bold text-red-400">Status: Unclaimed</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <section className="p-8">
+        <div className="bg-gray-900 p-6 rounded-xl shadow-lg">
+          <h2 className="text-2xl font-bold mb-6">Your Donations</h2>
+          {/* Grid container for horizontal layout */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Unclaimed Donations */}
+            <div className="bg-gray-800 p-6 rounded-xl">
+              <h3 className="text-xl font-semibold mb-4 text-yellow-300">Unclaimed Donations</h3>
+              {unclaimed.length === 0 ? (
+                <p className="text-gray-400 mb-4">No unclaimed donations.</p>
+              ) : (
+                <ul className="space-y-4">
+                  {unclaimed.map((d) => (
+                    <li key={d.id} className="border p-4 rounded-lg bg-gray-700">
+                      <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
+                      <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
+                      <br />
+                      {isExpired(d.expiry) ? (
+                        <span className="block mt-1 font-bold text-red-500">Status: Expired</span>
+                      ) : (
+                        <span className="block mt-1 font-bold text-red-400">Status: Unclaimed</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-      {/* Claimed/Picked Donations */}
-      <div className="bg-gray-800 p-6 rounded-xl">
-        <h3 className="text-xl font-semibold mb-4 text-yellow-300">Claimed / Picked Donations</h3>
-        {claimed.length === 0 ? (
-          <p className="text-gray-400 mb-4">No claimed or picked donations.</p>
-        ) : (
-          <ul className="space-y-4">
-            {claimed.map((d) => (
-              <li key={d.id} className="border p-4 rounded-lg bg-gray-700">
-                <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
-                <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
-                <br />
-                <span className="block mt-1 font-semibold">Claimed by: {d.organisation?.name || "Organisation"}</span>
-                <span className="block mt-1 font-bold text-blue-400">Status: {d.status.charAt(0).toUpperCase() + d.status.slice(1)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+            {/* Claimed/Picked Donations */}
+            <div className="bg-gray-800 p-6 rounded-xl">
+              <h3 className="text-xl font-semibold mb-4 text-yellow-300">Claimed / Picked Donations</h3>
+              {claimed.length === 0 ? (
+                <p className="text-gray-400 mb-4">No claimed or picked donations.</p>
+              ) : (
+                <ul className="space-y-4">
+                  {claimed.map((d) => (
+                    <li key={d.id} className="border p-4 rounded-lg bg-gray-700">
+                      <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
+                      <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
+                      <br />
+                      <span className="block mt-1 font-semibold">Claimed by: {d.organisation?.name || "Organisation"}</span>
+                      {isExpired(d.expiry) ? (
+                        <span className="block mt-1 font-bold text-red-500">Status: Expired</span>
+                      ) : (
+                        <span className="block mt-1 font-bold text-blue-400">Status: {d.status.charAt(0).toUpperCase() + d.status.slice(1)}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-      {/* Delivered Donations */}
-      <div className="bg-gray-800 p-6 rounded-xl">
-        <h3 className="text-xl font-semibold mb-4 text-yellow-300">Delivered Donations</h3>
-        {delivered.length === 0 ? (
-          <p className="text-gray-400">No delivered donations yet.</p>
-        ) : (
-          <ul className="space-y-4">
-            {delivered.map((d) => (
-              <li key={d.id} className="border p-4 rounded-lg bg-gray-700">
-                <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
-                <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
-                <br />
-                <span className="block mt-1 font-semibold">Claimed by: {d.organisation?.name || "Organisation"}</span>
-                <span className="block mt-1 font-bold text-green-400">Status: Delivered</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      
-    </div>
-  </div>
-</section>
+            {/* Delivered Donations */}
+            <div className="bg-gray-800 p-6 rounded-xl">
+              <h3 className="text-xl font-semibold mb-4 text-yellow-300">Delivered Donations</h3>
+              {delivered.length === 0 ? (
+                <p className="text-gray-400">No delivered donations yet.</p>
+              ) : (
+                <ul className="space-y-4">
+                  {delivered.map((d) => (
+                    <li key={d.id} className="border p-4 rounded-lg bg-gray-700">
+                      <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
+                      <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
+                      <br />
+                      <span className="block mt-1 font-semibold">Claimed by: {d.organisation?.name || "Organisation"}</span>
+                      {isExpired(d.expiry) ? (
+                        <span className="block mt-1 font-bold text-red-500">Status: Expired</span>
+                      ) : (
+                        <span className="block mt-1 font-bold text-green-400">Status: Delivered</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Nearest NGOs Section (only edible) */}
       <section className="p-8">
@@ -315,9 +361,6 @@ export default function UserPage() {
           )}
         </div>
       </section>
-
-      {/* Big Center Button Section */}
-      
     </div>
   );
 }
