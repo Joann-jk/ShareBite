@@ -30,7 +30,7 @@ export default function RecipientDashboard() {
 
   // Lists by status
   const [posted, setPosted] = useState([]);
-  const [diverted, setDiverted] = useState([]);
+  const [diverted, setDiverted] = useState([]); // only for non-edible/both orgs
   const [claimed, setClaimed] = useState([]);
   const [picked, setPicked] = useState([]);
   const [delivered, setDelivered] = useState([]);
@@ -72,6 +72,7 @@ export default function RecipientDashboard() {
       } else if (canEdible && canNonEdible) {
         postedQuery = postedQuery.in("acceptance", ["edible", "non-edible"]);
       } else {
+        // unlikely, default to nothing
         postedQuery = postedQuery.eq("acceptance", "edible");
       }
 
@@ -223,7 +224,7 @@ export default function RecipientDashboard() {
         .from("donations")
         .update({ status: "claimed", organisation_id: orgId })
         .eq("id", donationId)
-        .in("status", ["posted", "diverted"])
+        .in("status", ["posted", "diverted"]) // allow claim from both views
         .is("organisation_id", null)
         .select("*")
         .maybeSingle();
@@ -297,7 +298,7 @@ export default function RecipientDashboard() {
           zIndex: 50,
           width: "100vw",
           height: "100vh",
-          background: "rgba(0,0,0,0.4)",
+          background: "rgba(0,0,0,0.8)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -305,18 +306,18 @@ export default function RecipientDashboard() {
         onClick={() => setSelectedDonation(null)}
       >
         <div
-          className="bg-white rounded-xl shadow-xl p-8 max-w-md w-full"
+          className="bg-black border-2 border-yellow-400 rounded-xl shadow-2xl p-8 max-w-md w-full"
           onClick={(e) => e.stopPropagation()}
         >
-          <h2 className="text-xl font-bold mb-2">{food_type}</h2>
-          <p>
-            <b>Quantity:</b> {quantity} {quantity_unit}
+          <h2 className="text-xl font-bold mb-2 text-yellow-400">{food_type}</h2>
+          <p className="text-gray-300">
+            <b className="text-yellow-300">Quantity:</b> {quantity} {quantity_unit}
           </p>
-          <p>
-            <b>Status:</b> {status}
+          <p className="text-gray-300">
+            <b className="text-yellow-300">Status:</b> {status}
           </p>
-          <p>
-            <b>Expiry:</b>{" "}
+          <p className="text-gray-300">
+            <b className="text-yellow-300">Expiry:</b>{" "}
             {expiry
               ? new Date(expiry).toLocaleString([], {
                   hour: "2-digit",
@@ -332,7 +333,7 @@ export default function RecipientDashboard() {
               href={googleMapUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="block my-4 text-blue-700 underline"
+              className="block my-4 text-yellow-400 underline hover:text-yellow-300"
             >
               Open in Google Maps
             </a>
@@ -342,14 +343,14 @@ export default function RecipientDashboard() {
               title="Google Map"
               width="100%"
               height="200"
-              style={{ border: 0, borderRadius: "1em" }}
+              style={{ border: "2px solid #facc15", borderRadius: "1em" }}
               loading="lazy"
               allowFullScreen
               src={`https://maps.google.com/maps?q=${latitude},${longitude}&z=15&output=embed`}
             />
           )}
           <button
-            className="mt-4 px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900"
+            className="mt-4 px-4 py-2 bg-yellow-500 text-black font-semibold rounded hover:bg-yellow-400 transition-colors"
             onClick={() => setSelectedDonation(null)}
           >
             Close
@@ -388,7 +389,7 @@ export default function RecipientDashboard() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 min-h-screen bg-black text-gray-100">
       {/* Logout Button */}
       <div className="flex justify-end mb-4">
         <button
@@ -399,43 +400,43 @@ export default function RecipientDashboard() {
         </button>
       </div>
 
-      <h1 className="text-2xl font-bold mb-2">Nearby Donations</h1>
-      <p className="text-sm text-gray-600 mb-4">
+      <h1 className="text-3xl font-bold mb-2 text-yellow-400">Nearby Donations</h1>
+      <p className="text-sm text-gray-300 mb-4">
         View only the donations your organisation accepts. Non-edible organisations also see diverted items.
       </p>
 
       {errorMsg && (
-        <div className="mb-4 p-3 rounded border border-red-300 bg-red-50 text-red-800">
+        <div className="mb-4 p-3 rounded border-2 border-red-500 bg-red-900/50 text-red-200">
           {errorMsg}
         </div>
       )}
 
       {/* Posted (filtered by org acceptance) */}
-      <h2 className="text-xl font-semibold mb-3">Posted</h2>
+      <h2 className="text-xl font-semibold mb-3 text-yellow-400">Posted</h2>
       {initialLoading ? (
-        <p className="text-gray-500">Loading…</p>
+        <p className="text-gray-400">Loading…</p>
       ) : posted.length === 0 ? (
-        <p className="text-gray-500">No active donations right now.</p>
+        <p className="text-gray-400">No active donations right now.</p>
       ) : (
         <ul className="space-y-4">
           {posted.map((d) => (
             <li
               key={d.id}
-              className="p-4 border rounded-lg shadow-md bg-white cursor-pointer"
+              className="p-4 border-2 border-yellow-500/30 rounded-lg shadow-md bg-gray-900 hover:bg-gray-800 cursor-pointer hover:border-yellow-400 transition-all"
               onClick={() => setSelectedDonation(d)}
             >
-              <h3 className="font-semibold text-lg">{d.food_type}</h3>
-              <p>Quantity: {d.quantity} {d.quantity_unit}</p>
-              <p>Expires: {formatExpiry(d.expiry)}</p>
-              <p>Type: {d.acceptance}</p>
-              <p>Status: {d.status}</p>
+              <h3 className="font-semibold text-lg text-yellow-400">{d.food_type}</h3>
+              <p className="text-gray-300">Quantity: {d.quantity} {d.quantity_unit}</p>
+              <p className="text-gray-300">Expires: {formatExpiry(d.expiry)}</p>
+              <p className="text-gray-300">Type: <span className="text-yellow-300">{d.acceptance}</span></p>
+              <p className="text-gray-300">Status: <span className="text-yellow-300">{d.status}</span></p>
               <button
                 onClick={async (e) => {
                   e.stopPropagation();
                   await handleClaim(d.id);
                 }}
                 disabled={!orgId || claimingId === d.id}
-                className="mt-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                className="mt-2 px-3 py-1 bg-yellow-500 text-black font-semibold rounded hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {claimingId === d.id ? "Claiming…" : "Claim"}
               </button>
@@ -447,29 +448,29 @@ export default function RecipientDashboard() {
       {/* Diverted (visible for non-edible/both orgs) 
       {canNonEdible && (
         <>
-          <h2 className="text-xl font-semibold mt-8 mb-3">Diverted (Non-edible)</h2>
+          <h2 className="text-xl font-semibold mt-8 mb-3 text-yellow-400">Diverted (Non-edible)</h2>
           {diverted.length === 0 ? (
-            <p className="text-gray-500">No diverted donations available.</p>
+            <p className="text-gray-400">No diverted donations available.</p>
           ) : (
             <ul className="space-y-4">
               {diverted.map((d) => (
                 <li
                   key={d.id}
-                  className="p-4 border rounded-lg shadow-md bg-white cursor-pointer"
+                  className="p-4 border-2 border-yellow-500/30 rounded-lg shadow-md bg-gray-900 hover:bg-gray-800 cursor-pointer hover:border-yellow-400 transition-all"
                   onClick={() => setSelectedDonation(d)}
                 >
-                  <h3 className="font-semibold text-lg">{d.food_type}</h3>
-                  <p>Quantity: {d.quantity} {d.quantity_unit}</p>
-                  <p>Originally edible, now diverted to non-edible queue</p>
-                  <p>Type: {d.acceptance}</p>
-                  <p>Status: {d.status}</p>
+                  <h3 className="font-semibold text-lg text-yellow-400">{d.food_type}</h3>
+                  <p className="text-gray-300">Quantity: {d.quantity} {d.quantity_unit}</p>
+                  <p className="text-gray-300">Originally edible, now diverted to non-edible queue</p>
+                  <p className="text-gray-300">Type: <span className="text-yellow-300">{d.acceptance}</span></p>
+                  <p className="text-gray-300">Status: <span className="text-yellow-300">{d.status}</span></p>
                   <button
                     onClick={async (e) => {
                       e.stopPropagation();
                       await handleClaim(d.id); // same handler supports diverted
                     }}
                     disabled={!orgId || claimingId === d.id}
-                    className="mt-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                    className="mt-2 px-3 py-1 bg-yellow-500 text-black font-semibold rounded hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {claimingId === d.id ? "Claiming…" : "Claim"}
                   </button>
@@ -481,28 +482,28 @@ export default function RecipientDashboard() {
       )}
 */}
       {/* Claimed Donations */}
-      <h2 className="text-2xl font-bold mt-8 mb-4">Claimed Donations</h2>
+      <h2 className="text-2xl font-bold mt-8 mb-4 text-yellow-400">Claimed Donations</h2>
       {claimed.length === 0 ? (
-        <p className="text-gray-500">No claimed donations yet.</p>
+        <p className="text-gray-400">No claimed donations yet.</p>
       ) : (
         <ul className="space-y-4">
           {claimed.map((d) => (
             <li
               key={d.id}
-              className="p-4 border rounded-lg shadow-md bg-white cursor-pointer"
+              className="p-4 border-2 border-yellow-500/30 rounded-lg shadow-md bg-gray-900 hover:bg-gray-800 cursor-pointer hover:border-yellow-400 transition-all"
               onClick={() => setSelectedDonation(d)}
             >
-              <h3 className="font-semibold text-lg">{d.food_type}</h3>
-              <p>Quantity: {d.quantity} {d.quantity_unit}</p>
-              <p>Expires: {formatExpiry(d.expiry)}</p>
-              <p>Status: {d.status}</p>
+              <h3 className="font-semibold text-lg text-yellow-400">{d.food_type}</h3>
+              <p className="text-gray-300">Quantity: {d.quantity} {d.quantity_unit}</p>
+              <p className="text-gray-300">Expires: {formatExpiry(d.expiry)}</p>
+              <p className="text-gray-300">Status: <span className="text-yellow-300">{d.status}</span></p>
               <button
                 onClick={async (e) => {
                   e.stopPropagation();
                   await handlePicked(d.id);
                 }}
                 disabled={pickingId === d.id}
-                className="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                className="mt-2 px-3 py-1 bg-blue-600 text-white font-semibold rounded hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {pickingId === d.id ? "Updating…" : "Picked Up"}
               </button>
@@ -512,28 +513,28 @@ export default function RecipientDashboard() {
       )}
 
       {/* Picked Donations */}
-      <h2 className="text-2xl font-bold mt-8 mb-4">Picked Up Donations</h2>
+      <h2 className="text-2xl font-bold mt-8 mb-4 text-yellow-400">Picked Up Donations</h2>
       {picked.length === 0 ? (
-        <p className="text-gray-500">No picked up donations yet.</p>
+        <p className="text-gray-400">No picked up donations yet.</p>
       ) : (
         <ul className="space-y-4">
           {picked.map((d) => (
             <li
               key={d.id}
-              className="p-4 border rounded-lg shadow-md bg-white cursor-pointer"
+              className="p-4 border-2 border-yellow-500/30 rounded-lg shadow-md bg-gray-900 hover:bg-gray-800 cursor-pointer hover:border-yellow-400 transition-all"
               onClick={() => setSelectedDonation(d)}
             >
-              <h3 className="font-semibold text-lg">{d.food_type}</h3>
-              <p>Quantity: {d.quantity} {d.quantity_unit}</p>
-              <p>Expires: {formatExpiry(d.expiry)}</p>
-              <p>Status: {d.status}</p>
+              <h3 className="font-semibold text-lg text-yellow-400">{d.food_type}</h3>
+              <p className="text-gray-300">Quantity: {d.quantity} {d.quantity_unit}</p>
+              <p className="text-gray-300">Expires: {formatExpiry(d.expiry)}</p>
+              <p className="text-gray-300">Status: <span className="text-yellow-300">{d.status}</span></p>
               <button
                 onClick={async (e) => {
                   e.stopPropagation();
                   await handleDelivered(d.id);
                 }}
                 disabled={deliveringId === d.id}
-                className="mt-2 px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+                className="mt-2 px-3 py-1 bg-purple-600 text-white font-semibold rounded hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {deliveringId === d.id ? "Updating…" : "Delivered"}
               </button>
@@ -543,21 +544,21 @@ export default function RecipientDashboard() {
       )}
 
       {/* Delivered Donations */}
-      <h2 className="text-2xl font-bold mt-8 mb-4">Delivered Donations</h2>
+      <h2 className="text-2xl font-bold mt-8 mb-4 text-yellow-400">Delivered Donations</h2>
       {delivered.length === 0 ? (
-        <p className="text-gray-500">No delivered donations yet.</p>
+        <p className="text-gray-400">No delivered donations yet.</p>
       ) : (
         <ul className="space-y-4">
           {delivered.map((d) => (
             <li
               key={d.id}
-              className="p-4 border rounded-lg shadow-md bg-white cursor-pointer"
+              className="p-4 border-2 border-yellow-500/30 rounded-lg shadow-md bg-gray-900 hover:bg-gray-800 cursor-pointer hover:border-yellow-400 transition-all"
               onClick={() => setSelectedDonation(d)}
             >
-              <h3 className="font-semibold text-lg">{d.food_type}</h3>
-              <p>Quantity: {d.quantity} {d.quantity_unit}</p>
-              <p>Expires: {formatExpiry(d.expiry)}</p>
-              <p>Status: {d.status}</p>
+              <h3 className="font-semibold text-lg text-yellow-400">{d.food_type}</h3>
+              <p className="text-gray-300">Quantity: {d.quantity} {d.quantity_unit}</p>
+              <p className="text-gray-300">Expires: {formatExpiry(d.expiry)}</p>
+              <p className="text-gray-300">Status: <span className="text-yellow-300">{d.status}</span></p>
             </li>
           ))}
         </ul>
@@ -567,3 +568,4 @@ export default function RecipientDashboard() {
     </div>
   );
 }
+
