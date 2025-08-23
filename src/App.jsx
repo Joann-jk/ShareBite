@@ -1,14 +1,29 @@
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./lib/AuthContext";
+import Homepage from "./pages/HomePage/HomePage";
 
-import { useState } from "react";
-import Login from "./pages/Login";
+import Signup from "./pages/Signup/signup";
+import RecipientDashboard from "./pages/RecipientDashboard/RecipientDashboard";
 import DonorDashboard from "./pages/DonorDashboard/DonationForm";
-import HomePage from "./pages/HomePage/HomePage";
+import VolunteerDashboard from "./pages/VolunteerDashboard/VolunteerDashboard";
+import Login from "./pages/login";
+import Redirect from "./pages/Redirect";
+
 function App() {
-  return <div>  
-    <HomePage/>
-
-  </div>;
+  return (
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Homepage />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/redirect" element={<Redirect/>} />
+          <Route path="/recipient" element={<RecipientDashboard />} />
+          <Route path="/donor" element={<DonorDashboard />} />
+          <Route path="/volunteer" element={<VolunteerDashboard />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
+  );
 }
-
 export default App;
-

@@ -50,7 +50,7 @@ const Homepage = () => {
               Impact
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-yellow-500 group-hover:w-full transition-all duration-300"></span>
             </a>
-            <Button>Sign In</Button>
+            <Button><a href="/signup">Sign in</a></Button>
           </div>
         </div>
       </nav>
@@ -95,6 +95,7 @@ const Homepage = () => {
         </div>
       </section>
 
+    
       {/* About Section */}
       <section id="about" className="py-20 px-10 bg-gray-900">
         <div className="max-w-6xl mx-auto">

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const navigate = useNavigate()
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -16,14 +18,12 @@ export default function Login() {
       email,
       password,
     });
-
     if (error) {
       setError(error.message);
     } else {
       alert("Login successful 🎉");
-      // TODO: redirect user to dashboard
+      navigate('/redirect')
     }
-
     setLoading(false);
   };
 

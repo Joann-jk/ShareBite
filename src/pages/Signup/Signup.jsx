@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
+import { useNavigate } from "react-router-dom";
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -17,6 +18,7 @@ export default function Signup() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const navigate = useNavigate()
 
   // 📍 Get current location if recipient
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function Signup() {
       setError(dbError.message);
     } else {
       alert("Signup successful 🎉 Please verify your email.");
+      navigate('/redirect')
     }
 
     setLoading(false);
