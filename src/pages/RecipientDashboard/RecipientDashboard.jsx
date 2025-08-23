@@ -279,6 +279,7 @@ export default function RecipientDashboard() {
         }}
         onClick={() => setSelectedDonation(null)}
       >
+        
         <div
           className="bg-black border-2 border-yellow-400 rounded-xl shadow-2xl p-8 max-w-md w-full"
           onClick={(e) => e.stopPropagation()}
@@ -367,21 +368,27 @@ export default function RecipientDashboard() {
   }
 
   return (
-    <div className="p-6 min-h-screen bg-black text-gray-100">
-      {/* Logout Button */}
-      <div className="flex justify-end mb-4">
-        <button
+    
+      <div className="min-h-screen bg-black text-yellow-400 flex flex-col">
+      {/* Navbar */}
+      <nav className="flex justify-between items-center p-4 border-b border-yellow-400">
+        <div className="text-2xl font-bold">ShareBite</div>
+        <div className="space-x-6 text-lg">
+          <button
           className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           onClick={handleLogout}
         >
           Logout
         </button>
-      </div>
+        </div>
+      </nav>
 
-      <h1 className="text-3xl font-bold mb-2 text-yellow-400">Nearby Donations</h1>
-      <p className="text-sm text-gray-300 mb-4">
-        View only the donations your organisation accepts. Non-edible organisations also see diverted items.
-      </p>
+<h1 className="text-4xl md:text-4xl font-extrabold my-10 text-center bg-gradient-to-r from-yellow-400 via-yellow-500 to-yellow-400 bg-clip-text text-transparent">
+  Welcome To Your Recipient Dashboard!
+</h1>
+
+
+     
 
       {errorMsg && (
         <div className="mb-4 p-3 rounded border-2 border-red-500 bg-red-900/50 text-red-200">
@@ -390,7 +397,10 @@ export default function RecipientDashboard() {
       )}
 
       {/* Posted (filtered by org acceptance) */}
-      <h2 className="text-xl font-semibold mb-3 text-yellow-400">Posted</h2>
+      <h2 className="text-3xl font-bold mt-8 mb-4 ml-4 text-yellow-400">
+  Posted
+</h2>
+
       {initialLoading ? (
         <p className="text-gray-400">Loading…</p>
       ) : posted.length === 0 ? (
@@ -424,7 +434,10 @@ export default function RecipientDashboard() {
       )}
 
       {/* Claimed Donations */}
-      <h2 className="text-2xl font-bold mt-8 mb-4 text-yellow-400">Claimed Donations</h2>
+      <h2 className="text-3xl font-bold mt-8 mb-4 ml-4 text-yellow-400">
+  Claimed Donations Posted 
+</h2>
+
       {claimed.length === 0 ? (
         <p className="text-gray-400">No claimed donations yet.</p>
       ) : (
