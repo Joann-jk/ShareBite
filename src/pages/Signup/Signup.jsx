@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../lib/AuthContext";
 
 export default function Signup() {
   const [formData, setFormData] = useState({
@@ -19,7 +20,9 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate()
+  const {user} = useAuth()
 
+  if (user) navigate('/redirect')
   // 📍 Get current location if recipient
   useEffect(() => {
     if (formData.role === "recipient" && navigator.geolocation) {

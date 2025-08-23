@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../supabaseClient";
 import { useAuth } from "../../lib/AuthContext";
+import { Navigate } from "react-router-dom";
 
 // Haversine distance in km
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -19,18 +20,10 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
 
 export default function RecipientDashboard() {
   const { userDetail: user, logout } = useAuth();
-  // ^^^ Make sure your AuthContext provides a logout method!
-  const [donationsStatus, setDonationsStatus] = useState({
-    posted: [],
-    diverted: [],
-    claimed: [],
-    picked: [],
-    delivered: [],
-  });
 
   // Lists by status
   const [posted, setPosted] = useState([]);
-  const [diverted, setDiverted] = useState([]); // only for non-edible/both orgs
+  const [diverted, setDiverted] = useState([]);
   const [claimed, setClaimed] = useState([]);
   const [picked, setPicked] = useState([]);
   const [delivered, setDelivered] = useState([]);
@@ -46,12 +39,11 @@ export default function RecipientDashboard() {
   const orgLat = user?.latitude ?? null;
   const orgLng = user?.longitude ?? null;
   const orgId = user?.id ?? null;
-  const acceptanceType = user?.acceptance_type ?? "edible"; // 'edible' | 'non-edible' | 'both'
+  const acceptanceType = user?.acceptance_type ?? "edible";
 
   const canNonEdible = acceptanceType === "non-edible" || acceptanceType === "both";
   const canEdible = acceptanceType === "edible" || acceptanceType === "both";
 
-  // Fetch initial data
   useEffect(() => {
     let cancelled = false;
 
@@ -59,10 +51,6 @@ export default function RecipientDashboard() {
       setInitialLoading(true);
       setErrorMsg("");
 
-      // Build posted query based on acceptance_type
-      // - edible orgs: posted + acceptance='edible'
-      // - non-edible orgs: posted + acceptance='non-edible'
-      // - both: posted + acceptance in both types
       let postedQuery = supabase.from("donations").select("*").eq("status", "posted");
 
       if (canEdible && !canNonEdible) {
@@ -72,18 +60,14 @@ export default function RecipientDashboard() {
       } else if (canEdible && canNonEdible) {
         postedQuery = postedQuery.in("acceptance", ["edible", "non-edible"]);
       } else {
-        // unlikely, default to nothing
         postedQuery = postedQuery.eq("acceptance", "edible");
       }
 
       const postedPromise = postedQuery;
-
-      // Diverted only for non-edible/both orgs
       const divertedPromise = canNonEdible
         ? supabase.from("donations").select("*").eq("status", "diverted")
         : Promise.resolve({ data: [], error: null });
 
-      // Org-owned lists
       const claimedPromise = orgId
         ? supabase.from("donations").select("*").eq("status", "claimed").eq("organisation_id", orgId)
         : Promise.resolve({ data: [], error: null });
@@ -131,7 +115,6 @@ export default function RecipientDashboard() {
     };
   }, [orgId, acceptanceType]);
 
-  // Realtime sync
   useEffect(() => {
     const channel = supabase
       .channel("donations-realtime-recipient")
@@ -156,7 +139,6 @@ export default function RecipientDashboard() {
           const d = newRow;
           const isMine = orgId && d?.organisation_id === orgId;
 
-          // Should this row appear in posted for this org?
           const matchesPostedForOrg =
             d?.status === "posted" &&
             ((canEdible && !canNonEdible && d?.acceptance === "edible") ||
@@ -169,14 +151,12 @@ export default function RecipientDashboard() {
             setPosted((prev) => prev.filter((x) => x.id !== d.id));
           }
 
-          // Diverted list only for non-edible/both orgs
           if (canNonEdible && d?.status === "diverted") {
             setDiverted((prev) => [d, ...prev.filter((x) => x.id !== d.id)]);
           } else {
             setDiverted((prev) => prev.filter((x) => x.id !== d.id));
           }
 
-          // If not mine, ensure it's not in my org-owned lists
           if (!isMine) {
             setClaimed((prev) => prev.filter((x) => x.id !== d.id));
             setPicked((prev) => prev.filter((x) => x.id !== d.id));
@@ -184,7 +164,6 @@ export default function RecipientDashboard() {
             return;
           }
 
-          // If mine, place in correct list
           if (d.status === "claimed") {
             setClaimed((prev) => [d, ...prev.filter((x) => x.id !== d.id)]);
             setPicked((prev) => prev.filter((x) => x.id !== d.id));
@@ -198,7 +177,6 @@ export default function RecipientDashboard() {
             setClaimed((prev) => prev.filter((x) => x.id !== d.id));
             setPicked((prev) => prev.filter((x) => x.id !== d.id));
           } else {
-            // Any other status: remove from my org lists
             setClaimed((prev) => prev.filter((x) => x.id !== d.id));
             setPicked((prev) => prev.filter((x) => x.id !== d.id));
             setDelivered((prev) => prev.filter((x) => x.id !== d.id));
@@ -212,9 +190,6 @@ export default function RecipientDashboard() {
     };
   }, [orgId, canEdible, canNonEdible]);
 
-  // Mutations
-
-  // Claim posted (filtered by acceptance) or diverted (if visible through separate section)
   async function handleClaim(donationId) {
     if (!orgId) return;
     setErrorMsg("");
@@ -224,7 +199,7 @@ export default function RecipientDashboard() {
         .from("donations")
         .update({ status: "claimed", organisation_id: orgId })
         .eq("id", donationId)
-        .in("status", ["posted", "diverted"]) // allow claim from both views
+        .in("status", ["posted", "diverted"])
         .is("organisation_id", null)
         .select("*")
         .maybeSingle();
@@ -273,7 +248,6 @@ export default function RecipientDashboard() {
     }
   }
 
-  // Map modal
   const renderMapModal = useMemo(() => {
     if (!selectedDonation) return null;
 
@@ -360,7 +334,6 @@ export default function RecipientDashboard() {
     );
   }, [selectedDonation, orgLat, orgLng]);
 
-  // UI helpers
   function formatExpiry(ts) {
     if (!ts) return "N/A";
     try {
@@ -376,7 +349,7 @@ export default function RecipientDashboard() {
     }
   }
 
-  // Logout Handler
+  // Implement logout handler
   const handleLogout = async () => {
     if (logout) {
       await logout();
@@ -387,6 +360,11 @@ export default function RecipientDashboard() {
       // window.location.href = "/login";
     }
   };
+
+  // Redirect logic AFTER all hooks
+  if (user && user.role !== "recipient") {
+    return <Navigate to="/redirect" replace />;
+  }
 
   return (
     <div className="p-6 min-h-screen bg-black text-gray-100">
@@ -444,43 +422,7 @@ export default function RecipientDashboard() {
           ))}
         </ul>
       )}
-      
-      {/* Diverted (visible for non-edible/both orgs) 
-      {canNonEdible && (
-        <>
-          <h2 className="text-xl font-semibold mt-8 mb-3 text-yellow-400">Diverted (Non-edible)</h2>
-          {diverted.length === 0 ? (
-            <p className="text-gray-400">No diverted donations available.</p>
-          ) : (
-            <ul className="space-y-4">
-              {diverted.map((d) => (
-                <li
-                  key={d.id}
-                  className="p-4 border-2 border-yellow-500/30 rounded-lg shadow-md bg-gray-900 hover:bg-gray-800 cursor-pointer hover:border-yellow-400 transition-all"
-                  onClick={() => setSelectedDonation(d)}
-                >
-                  <h3 className="font-semibold text-lg text-yellow-400">{d.food_type}</h3>
-                  <p className="text-gray-300">Quantity: {d.quantity} {d.quantity_unit}</p>
-                  <p className="text-gray-300">Originally edible, now diverted to non-edible queue</p>
-                  <p className="text-gray-300">Type: <span className="text-yellow-300">{d.acceptance}</span></p>
-                  <p className="text-gray-300">Status: <span className="text-yellow-300">{d.status}</span></p>
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      await handleClaim(d.id); // same handler supports diverted
-                    }}
-                    disabled={!orgId || claimingId === d.id}
-                    className="mt-2 px-3 py-1 bg-yellow-500 text-black font-semibold rounded hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {claimingId === d.id ? "Claiming…" : "Claim"}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
-*/}
+
       {/* Claimed Donations */}
       <h2 className="text-2xl font-bold mt-8 mb-4 text-yellow-400">Claimed Donations</h2>
       {claimed.length === 0 ? (
@@ -568,4 +510,3 @@ export default function RecipientDashboard() {
     </div>
   );
 }
-
