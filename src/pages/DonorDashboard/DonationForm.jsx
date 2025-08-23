@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient"; // adjust path as needed
-import { useAuth } from "../../lib/AuthContext";// get donor_id from logged in user
+import { useAuth } from "../../lib/AuthContext"; // donor context
 import NearestOrganisationsList from "../../components/NearestNgo";
 
 export default function DonationForm() {
-  const { user } = useAuth(); // get logged in user (donor)
+  const { user } = useAuth(); // donor
   const [formData, setFormData] = useState({
     food_type: "",
     quantity: "",
@@ -13,13 +13,16 @@ export default function DonationForm() {
     custom_expiry: "",
     latitude: null,
     longitude: null,
+    acceptance: "edible", // default value
   });
 
   const [loadingLoc, setLoadingLoc] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Get current location on mount
+  // Arbitrary far-future expiry used for non-edible posts to satisfy NOT NULL without affecting logic
+  const NON_EDIBLE_FAKE_EXPIRY = "2099-12-31T23:59:59.000Z";
+
   useEffect(() => {
     setLoadingLoc(true);
     if (navigator.geolocation) {
@@ -44,37 +47,60 @@ export default function DonationForm() {
   }, []);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    // If user switches to non-edible, clear expiry fields so we don't submit stale values
+    if (name === "acceptance" && value === "non-edible") {
+      setFormData((prev) => ({
+        ...prev,
+        acceptance: value,
+        expiry: "",
+        custom_expiry: "",
+      }));
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Convert expiry string to timestamp
+  // Only used for edible acceptance
   function getExpiryTimestamp() {
     const now = new Date();
     let expiryString = formData.expiry === "custom" ? formData.custom_expiry : formData.expiry;
-
     if (!expiryString) return null;
-    expiryString = expiryString.toLowerCase();
+    const lower = String(expiryString).toLowerCase().trim();
 
-    // Examples: "1 hour", "2 hours", "3 hours", "5 hours", "1 day"
-    if (expiryString.includes("hour")) {
-      const hours = parseInt(expiryString.match(/\d+/)?.[0] || "0", 10);
-      return new Date(now.getTime() + hours * 60 * 60 * 1000).toISOString();
+    // accept ISO date-time too
+    if (/^\d{4}-\d{2}-\d{2}t\d{2}:\d{2}/.test(lower)) {
+      const dt = new Date(lower);
+      return isNaN(dt.getTime()) ? null : dt.toISOString();
     }
-    if (expiryString.includes("day")) {
-      const days = parseInt(expiryString.match(/\d+/)?.[0] || "0", 10);
-      return new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+
+    // "X hour(s)" or "X day(s)"
+    const num = parseInt(lower.match(/\d+/)?.[0] || "0", 10);
+    if (!num) return null;
+
+    if (lower.includes("hour")) {
+      return new Date(now.getTime() + num * 60 * 60 * 1000).toISOString();
     }
-    return null; // fallback
+    if (lower.includes("day")) {
+      return new Date(now.getTime() + num * 24 * 60 * 60 * 1000).toISOString();
+    }
+    return null;
   }
 
-  // Match form units to schema units
   const quantityUnits = [
     { label: "Kilogram (kg)", value: "kg" },
-    { label: "Gram (g)", value: "g" }, // not in schema, convert to kg
+    { label: "Gram (g)", value: "g" }, // convert to kg
     { label: "Litre", value: "liters" },
     { label: "Packet", value: "packs" },
     { label: "Plate", value: "plates" },
     { label: "Item", value: "items" },
+  ];
+
+  const acceptanceOptions = [
+    { label: "Edible", value: "edible" },
+    { label: "Non-edible", value: "non-edible" },
   ];
 
   const handleSubmit = async (e) => {
@@ -82,57 +108,64 @@ export default function DonationForm() {
     setError("");
     setSuccess("");
 
-    // Convert quantity if needed
+    if (!user?.id) {
+      setError("Not logged in.");
+      return;
+    }
+
     let quantity = formData.quantity;
     let unit = formData.quantity_unit;
     if (unit === "g") {
-      // grams to kg for storage
       quantity = (Number(quantity) / 1000).toFixed(3);
       unit = "kg";
     }
 
-    // Validate location and lat/lng
-    if (!formData.latitude || !formData.longitude) {
+    if (formData.latitude == null || formData.longitude == null) {
       setError("Location not set. Please allow location access or enter manually.");
       return;
     }
 
-    const expiryTimestamp = getExpiryTimestamp();
-    if (!expiryTimestamp) {
-      setError("Invalid expiry time.");
-      return;
+    // Choose expiry path based on acceptance
+    let expiryTimestamp = null;
+
+    if (formData.acceptance === "edible") {
+      expiryTimestamp = getExpiryTimestamp();
+      if (!expiryTimestamp) {
+        setError("Invalid expiry time.");
+        return;
+      }
+    } else {
+      // Non-edible: hide expiry input in UI and supply an arbitrary far-future value
+      expiryTimestamp = NON_EDIBLE_FAKE_EXPIRY;
     }
 
-    // Prepare donation record
     const donation = {
-      donor_id: user?.id || "YOUR_DONOR_ID", // replace with actual user id
+      donor_id: user.id,
       food_type: formData.food_type,
       quantity: quantity,
       quantity_unit: unit,
       expiry: expiryTimestamp,
       latitude: formData.latitude,
       longitude: formData.longitude,
+      acceptance: formData.acceptance, // 'edible' | 'non-edible'
+      // status defaults to 'posted'; organisation_id null
     };
 
-    // Insert into Supabase
-    const { error: dbError } = await supabase
-      .from("donations")
-      .insert([donation]);
-
+    const { error: dbError } = await supabase.from("donations").insert([donation]);
     if (dbError) {
       setError(dbError.message);
     } else {
       setSuccess("Donation submitted! 🎉");
-      setFormData({
+      setFormData((prev) => ({
         food_type: "",
         quantity: "",
         quantity_unit: "",
         expiry: "",
         custom_expiry: "",
-        location: "",
-        latitude: formData.latitude,
-        longitude: formData.longitude,
-      });
+        latitude: prev.latitude,
+        longitude: prev.longitude,
+        acceptance: "edible",
+      }));
     }
   };
 
@@ -140,7 +173,7 @@ export default function DonationForm() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md space-y-6"
+        className="bg-white p-8 rounded-2xl shadow-lg w/full max-w-md space-y-6"
       >
         <h2 className="text-2xl font-bold text-center">Donate Food</h2>
 
@@ -195,42 +228,63 @@ export default function DonationForm() {
           </select>
         </div>
 
-        {/* Expiry */}
+        {/* Acceptance */}
         <div>
-          <label className="block mb-2 text-sm font-medium">Expiry</label>
+          <label className="block mb-2 text-sm font-medium">Food Acceptance Type</label>
           <select
-            name="expiry"
-            value={formData.expiry}
+            name="acceptance"
+            value={formData.acceptance}
             onChange={handleChange}
             className="w-full p-2 border rounded-lg"
             required
           >
-            <option value="">Select expiry time</option>
-            <option value="1 hour">1 Hour</option>
-            <option value="2 hours">2 Hours</option>
-            <option value="3 hours">3 Hours</option>
-            <option value="custom">Custom</option>
+            {acceptanceOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
-
-          {formData.expiry === "custom" && (
-            <input
-              type="text"
-              name="custom_expiry"
-              value={formData.custom_expiry}
-              onChange={handleChange}
-              placeholder="Enter custom expiry (e.g., 5 hours, 1 day)"
-              className="w-full mt-2 p-2 border rounded-lg"
-              required
-            />
-          )}
         </div>
+
+        {/* Expiry (only for edible) */}
+        {formData.acceptance === "edible" && (
+          <div>
+            <label className="block mb-2 text-sm font-medium">Expiry</label>
+            <select
+              name="expiry"
+              value={formData.expiry}
+              onChange={handleChange}
+              className="w-full p-2 border rounded-lg"
+              required
+            >
+              <option value="">Select expiry time</option>
+              <option value="1 hour">1 Hour</option>
+              <option value="2 hours">2 Hours</option>
+              <option value="3 hours">3 Hours</option>
+              <option value="1 day">1 Day</option>
+              <option value="custom">Custom</option>
+            </select>
+
+            {formData.expiry === "custom" && (
+              <input
+                type="text"
+                name="custom_expiry"
+                value={formData.custom_expiry}
+                onChange={handleChange}
+                placeholder="e.g., 5 hours, 1 day, or 2025-08-23T22:00"
+                className="w-full mt-2 p-2 border rounded-lg"
+                required
+              />
+            )}
+          </div>
+        )}
 
         {/* Latitude / Longitude (readonly, auto-filled) */}
         <div className="flex gap-2">
           <input
             type="number"
             name="latitude"
-            value={formData.latitude || ""}
+            value={formData.latitude ?? ""}
             onChange={handleChange}
             className="w-1/2 p-2 border rounded-lg"
             placeholder="Latitude"
@@ -239,22 +293,16 @@ export default function DonationForm() {
           <input
             type="number"
             name="longitude"
-            value={formData.longitude || ""}
+            value={formData.longitude ?? ""}
             onChange={handleChange}
             className="w-1/2 p-2 border rounded-lg"
             placeholder="Longitude"
             readOnly
           />
         </div>
-        {loadingLoc && (
-          <div className="text-sm text-gray-500">Getting location...</div>
-        )}
+        {loadingLoc && <div className="text-sm text-gray-500">Getting location...</div>}
 
-        {/* Submit */}
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
-        >
+        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
           Submit Donation
         </button>
       </form>
