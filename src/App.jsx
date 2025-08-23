@@ -8,6 +8,7 @@ import DonorDashboard from "./pages/DonorDashboard/DonationForm";
 import VolunteerDashboard from "./pages/VolunteerDashboard/VolunteerDashboard";
 import Login from "./pages/login";
 import Redirect from "./pages/Redirect";
+import UserPage from "./pages/UserPage/Userpage";
 
 function App() {
   return (
@@ -19,7 +20,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/redirect" element={<Redirect/>} />
           <Route path="/recipient" element={<RecipientDashboard />} />
-          <Route path="/donor" element={<DonorDashboard />} />
+          <Route path="/donor" element={<UserPage />} />
+          <Route path="/DonationForm" element={<DonorDashboard />} />
           <Route path="/volunteer" element={<VolunteerDashboard />} />
         </Routes>
       </Router>
