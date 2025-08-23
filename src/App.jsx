@@ -9,7 +9,7 @@ import VolunteerDashboard from "./pages/VolunteerDashboard/VolunteerDashboard";
 import Login from "./pages/login";
 import Redirect from "./pages/Redirect";
 import UserPage from "./pages/UserPage/Userpage";
-
+import AnalyticsPage from "./pages/UserPage/Analytics";
 function App() {
   return (
     <AuthProvider>
@@ -23,6 +23,8 @@ function App() {
           <Route path="/donor" element={<UserPage />} />
           <Route path="/DonationForm" element={<DonorDashboard />} />
           <Route path="/volunteer" element={<VolunteerDashboard />} />
+          <Route path="/user" element={<UserPage />} />
+  <Route path="/analytics" element={<AnalyticsPage />} />
         </Routes>
       </Router>
     </AuthProvider>

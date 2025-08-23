@@ -84,7 +84,7 @@ export default function Signup() {
     if (dbError) {
       setError(dbError.message);
     } else {
-      alert("Signup successful 🎉 Please verify your email.");
+      alert("Signup successful  Please verify your email.");
       navigate('/redirect')
     }
 
@@ -119,20 +119,20 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-100 to-purple-200">
-      <div className="w-full max-w-lg bg-white p-8 rounded-2xl shadow-2xl">
-        <h1 className="text-3xl font-bold text-center text-purple-700 mb-6">
-          📝 ShareBite Signup
+    <div className="min-h-screen flex items-center justify-center bg-black text-yellow-400 ">
+      <div className="w-full max-w-lg bg-black p-8 rounded-2xl shadow-2xl">
+        <h1 className="text-3xl font-bold text-center text-yellow-400 mb-6">
+           ShareBite Signup
         </h1>
 
-        {error && <p className="text-red-600 text-center mb-4">{error}</p>}
+        {error && <p className="text-white-600 text-center mb-4">{error}</p>}
 
         <form onSubmit={handleSignup} className="space-y-4">
           <input
             type="text"
             name="name"
             placeholder="Full Name"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-yellow-400"
             value={formData.name}
             onChange={handleChange}
             required
@@ -142,7 +142,7 @@ export default function Signup() {
             type="email"
             name="email"
             placeholder="Email"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-yellow-400"
             value={formData.email}
             onChange={handleChange}
             required
@@ -152,7 +152,7 @@ export default function Signup() {
             type="password"
             name="password"
             placeholder="Password"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-yellow-400"
             value={formData.password}
             onChange={handleChange}
             required
@@ -162,7 +162,7 @@ export default function Signup() {
             type="text"
             name="phone"
             placeholder="Phone Number"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-yellow-400"
             value={formData.phone}
             onChange={handleChange}
           />
@@ -171,7 +171,7 @@ export default function Signup() {
             name="role"
             value={formData.role}
             onChange={handleChange}
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-yellow-400"
           >
             <option value="donor">Donor</option>
             <option value="recipient">Recipient</option>
@@ -185,7 +185,7 @@ export default function Signup() {
                 name="acceptance_type"
                 value={formData.acceptance_type}
                 onChange={handleChange}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-yellow-400"
               >
                 <option value="edible">Edible</option>
                 <option value="non-edible">Non-Edible</option>
@@ -196,7 +196,7 @@ export default function Signup() {
                 name="organisation_type"
                 value={formData.organisation_type}
                 onChange={handleChange}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-yellow-400"
               >
                 <option value="">-- Select Organisation Type --</option>
                 {getOrgOptions().map((opt) => (
@@ -212,7 +212,7 @@ export default function Signup() {
             type="text"
             name="address"
             placeholder="Address"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-yellow-400"
             value={formData.address}
             onChange={handleChange}
           />
@@ -220,7 +220,7 @@ export default function Signup() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition"
+            className="w-full bg-yellow-600 text-white py-3 rounded-lg hover:bg-yellow-700 transition"
           >
             {loading ? "Signing up..." : "Sign Up"}
           </button>
@@ -228,7 +228,7 @@ export default function Signup() {
 
         <p className="text-sm text-gray-600 text-center mt-4">
           Already have an account?{" "}
-          <a href="/login" className="text-purple-600 font-semibold">
+          <a href="/login" className="text-yellow-600 font-semibold">
             Login
           </a>
         </p>

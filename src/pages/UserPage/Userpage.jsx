@@ -174,15 +174,22 @@ export default function UserPage() {
           >
             Donate
           </button>
-          <button className="hover:text-white">Analytics</button>
+          <button
+  className="hover:text-white"
+  onClick={() => navigate("/analytics")}
+>
+  Analytics
+</button>
+
           <button className="hover:text-white">Green Score</button>
         </div>
       </nav>
 
+
       {/* Hero / Welcome Section */}
       <header className="flex flex-col items-center justify-center py-16 bg-black text-yellow-400 rounded-b-3xl shadow-lg">
         <h1 className="text-4xl font-extrabold">
-          Welcome Back, {user?.name || user?.email || "User"}!
+         Welcome To Your Donor Space !
         </h1>
         <p className="mt-3 text-lg">
           Track your contributions and impact on the planet.
@@ -190,105 +197,106 @@ export default function UserPage() {
       </header>
 
       {/* Analytics Section */}
-      <section className="p-8">
-        <h2 className="text-2xl font-bold mb-4">📊 Past Contributions</h2>
-        <div className="bg-gray-900 p-6 rounded-xl shadow-lg">
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-              <XAxis dataKey="month" stroke="#FFD700" />
-              <YAxis stroke="#FFD700" />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="donations"
-                stroke="#FFD700"
-                strokeWidth={3}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+     <section className="flex flex-col items-center justify-center py-12">
+        <button
+          onClick={() => navigate("/DonationForm")}
+          className="bg-yellow-400 text-black px-10 py-5 text-2xl rounded-full font-extrabold shadow-lg hover:bg-yellow-500 transition"
+        >
+          Your Donation Today
+        </button>
       </section>
 
       {/* Green Score Section */}
       <section className="p-8">
-        <h2 className="text-2xl font-bold mb-4">🌍 Your Green Score</h2>
+        <h2 className="text-2xl font-bold mb-4">Your Green Score</h2>
         <div className="bg-gray-900 p-6 rounded-xl shadow-lg">
           <p className="mb-2">
             Your eco impact: <span className="font-bold">75%</span>
           </p>
           <div className="w-full bg-gray-700 rounded-full h-6">
-            <div className="bg-yellow-400 h-6 rounded-full w-3/4"></div>
+            <div className="bg-green-600 h-6 rounded-full w-3/4"></div>
           </div>
         </div>
       </section>
 
       {/* Donations Section */}
-      <section className="p-8">
-        <h2 className="text-2xl font-bold mb-4">🚚 Your Donations</h2>
-        <div className="bg-gray-900 p-6 rounded-xl shadow-lg">
-          {/* Unclaimed */}
-          <h3 className="text-xl font-semibold mb-2 text-yellow-300">Unclaimed Donations</h3>
-          {unclaimed.length === 0 ? (
-            <p className="text-gray-400 mb-4">No unclaimed donations.</p>
-          ) : (
-            <ul className="space-y-4 mb-6">
-              {unclaimed.map((d) => (
-                <li key={d.id} className="border p-4 rounded-lg bg-gray-800">
-                  <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
-                  <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
-                  <br />
-                  <span className="block mt-1 font-bold text-red-400">Status: Unclaimed</span>
-                </li>
-              ))}
-            </ul>
-          )}
+     <section className="p-8">
+  <div className="bg-gray-900 p-6 rounded-xl shadow-lg">
+    <h2 className="text-2xl font-bold mb-6">Your Donations</h2>
+    
+    {/* Grid container for horizontal layout */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      {/* Unclaimed Donations */}
+      <div className="bg-gray-800 p-6 rounded-xl">
+        <h3 className="text-xl font-semibold mb-4 text-yellow-300">Unclaimed Donations</h3>
+        {unclaimed.length === 0 ? (
+          <p className="text-gray-400 mb-4">No unclaimed donations.</p>
+        ) : (
+          <ul className="space-y-4">
+            {unclaimed.map((d) => (
+              <li key={d.id} className="border p-4 rounded-lg bg-gray-700">
+                <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
+                <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
+                <br />
+                <span className="block mt-1 font-bold text-red-400">Status: Unclaimed</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-          {/* Claimed/Picked */}
-          <h3 className="text-xl font-semibold mb-2 text-yellow-300">Claimed / Picked Donations</h3>
-          {claimed.length === 0 ? (
-            <p className="text-gray-400 mb-4">No claimed or picked donations.</p>
-          ) : (
-            <ul className="space-y-4 mb-6">
-              {claimed.map((d) => (
-                <li key={d.id} className="border p-4 rounded-lg bg-gray-800">
-                  <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
-                  <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
-                  <br />
-                  <span className="block mt-1 font-semibold">Claimed by: {d.organisation?.name || "Organisation"}</span>
-                  <span className="block mt-1 font-bold text-blue-400">Status: {d.status.charAt(0).toUpperCase() + d.status.slice(1)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+      {/* Claimed/Picked Donations */}
+      <div className="bg-gray-800 p-6 rounded-xl">
+        <h3 className="text-xl font-semibold mb-4 text-yellow-300">Claimed / Picked Donations</h3>
+        {claimed.length === 0 ? (
+          <p className="text-gray-400 mb-4">No claimed or picked donations.</p>
+        ) : (
+          <ul className="space-y-4">
+            {claimed.map((d) => (
+              <li key={d.id} className="border p-4 rounded-lg bg-gray-700">
+                <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
+                <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
+                <br />
+                <span className="block mt-1 font-semibold">Claimed by: {d.organisation?.name || "Organisation"}</span>
+                <span className="block mt-1 font-bold text-blue-400">Status: {d.status.charAt(0).toUpperCase() + d.status.slice(1)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-          {/* Delivered */}
-          <h3 className="text-xl font-semibold mb-2 text-yellow-300">Delivered Donations</h3>
-          {delivered.length === 0 ? (
-            <p className="text-gray-400">No delivered donations yet.</p>
-          ) : (
-            <ul className="space-y-4">
-              {delivered.map((d) => (
-                <li key={d.id} className="border p-4 rounded-lg bg-gray-800">
-                  <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
-                  <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
-                  <br />
-                  <span className="block mt-1 font-semibold">Claimed by: {d.organisation?.name || "Organisation"}</span>
-                  <span className="block mt-1 font-bold text-green-400">Status: Delivered</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+      {/* Delivered Donations */}
+      <div className="bg-gray-800 p-6 rounded-xl">
+        <h3 className="text-xl font-semibold mb-4 text-yellow-300">Delivered Donations</h3>
+        {delivered.length === 0 ? (
+          <p className="text-gray-400">No delivered donations yet.</p>
+        ) : (
+          <ul className="space-y-4">
+            {delivered.map((d) => (
+              <li key={d.id} className="border p-4 rounded-lg bg-gray-700">
+                <span className="font-bold text-lg">{d.food_type}</span> ({d.quantity} {d.quantity_unit})<br />
+                <span className="text-xs">Expires: {new Date(d.expiry).toLocaleString()}</span>
+                <br />
+                <span className="block mt-1 font-semibold">Claimed by: {d.organisation?.name || "Organisation"}</span>
+                <span className="block mt-1 font-bold text-green-400">Status: Delivered</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      
+    </div>
+  </div>
+</section>
 
       {/* Nearest NGOs Section (only edible) */}
       <section className="p-8">
-        <h2 className="text-2xl font-bold mb-4">🏥 Nearest Edible NGOs</h2>
+        <h2 className="text-2xl font-bold mb-4">Nearest NGOs</h2>
         <div className="bg-gray-900 p-4 rounded-xl shadow-lg">
           {nearestOrgs.length === 0 ? (
             <p className="text-gray-400">
-              No nearby edible food NGOs found.
+              No nearby  food NGOs found.
             </p>
           ) : (
             <ul className="space-y-2">
@@ -309,14 +317,7 @@ export default function UserPage() {
       </section>
 
       {/* Big Center Button Section */}
-      <section className="flex flex-col items-center justify-center py-12">
-        <button
-          onClick={() => navigate("/DonationForm")}
-          className="bg-yellow-400 text-black px-10 py-5 text-2xl rounded-full font-extrabold shadow-lg hover:bg-yellow-500 transition"
-        >
-          🌟 Your Donation Today
-        </button>
-      </section>
+      
     </div>
   );
 }

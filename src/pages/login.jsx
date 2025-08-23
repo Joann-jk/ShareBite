@@ -21,17 +21,17 @@ export default function Login() {
     if (error) {
       setError(error.message);
     } else {
-      alert("Login successful 🎉");
+      
       navigate('/redirect')
     }
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-200">
-      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl">
-        <h1 className="text-3xl font-bold text-center text-purple-700 mb-6">
-          📝 ShareBite Login
+    <div className="min-h-screen flex items-center justify-center bg-black text-yellow-400">
+      <div className="w-full max-w-md bg-black-900 p-8 rounded-2xl shadow-2xl border border-yellow-500">
+        <h1 className="text-3xl font-bold text-center text-yellow-400 mb-6">
+          ShareBite Login
         </h1>
 
         {error && (
@@ -42,7 +42,7 @@ export default function Login() {
           <input
             type="email"
             placeholder="Email"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+             className="w-full p-3 border border-yellow-500 bg-black rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-yellow-400 placeholder-yellow-600"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -51,7 +51,7 @@ export default function Login() {
           <input
             type="password"
             placeholder="Password"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+            className="w-full p-3 border border-yellow-500 bg-black rounded-lg focus:ring-2 focus:ring-yellow-400 outline-none text-yellow-400 placeholder-yellow-600"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -60,15 +60,15 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition"
+           className="w-full bg-yellow-500 text-black py-3 rounded-lg font-semibold hover:bg-yellow-600 transition"
           >
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 
-        <p className="text-sm text-gray-600 text-center mt-4">
+         <p className="text-sm text-yellow-400 text-center mt-4">
           Don’t have an account?{" "}
-          <a href="/signup" className="text-purple-600 font-semibold">
+          <a href="/signup" className="text-yellow-300 font-semibold hover:underline">
             Sign up
           </a>
         </p>
