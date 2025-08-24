@@ -21,7 +21,7 @@ const chartData = [
 export default function AnalyticsPage() {
   return (
     <div className="min-h-screen bg-black text-yellow-400 p-8">
-      <h1 className="text-3xl font-bold mb-6">📊 Past Contributions</h1>
+      <h1 className="text-3xl font-bold mb-6"> Past Contributions</h1>
 
       <div className="bg-gray-900 p-6 rounded-xl shadow-lg">
         <ResponsiveContainer width="100%" height={400}>

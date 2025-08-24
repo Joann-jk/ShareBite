@@ -236,7 +236,7 @@ export default function VolunteerDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 text-yellow-400">
-      {/* Navbar */}
+      {/* Navbar 
       <nav className="flex justify-between items-center p-6 border-b border-yellow-400/30 backdrop-blur-sm bg-black/50">
         <div className="text-3xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
           ShareBite
@@ -252,7 +252,7 @@ export default function VolunteerDashboard() {
             Settings
           </button>
         </div>
-      </nav>
+      </nav>*/}
 
       {/* Hero */}
       <header className="text-center py-20 px-4">
@@ -375,14 +375,14 @@ export default function VolunteerDashboard() {
               {/* Accepted */}
               <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-yellow-300">📋 Accepted</h3>
+                  <h3 className="text-xl font-semibold text-yellow-300">Accepted</h3>
                   <span className="text-xs bg-orange-600 text-white px-2 py-1 rounded-full">
                     {acceptedDeliveries.length}
                   </span>
                 </div>
                 {acceptedDeliveries.length === 0 ? (
                   <div className="text-center py-8">
-                    <div className="text-4xl mb-4">📋</div>
+                    <div className="text-4xl mb-4"></div>
                     <p className="text-gray-400">No accepted deliveries</p>
                   </div>
                 ) : (
@@ -413,14 +413,14 @@ export default function VolunteerDashboard() {
               {/* In Transit */}
               <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-yellow-300">🚚 In Transit</h3>
+                  <h3 className="text-xl font-semibold text-yellow-300">In Transit</h3>
                   <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">
                     {pickedUpDeliveries.length}
                   </span>
                 </div>
                 {pickedUpDeliveries.length === 0 ? (
                   <div className="text-center py-8">
-                    <div className="text-4xl mb-4">🚚</div>
+                    <div className="text-4xl mb-4"></div>
                     <p className="text-gray-400">No deliveries in transit</p>
                   </div>
                 ) : (
@@ -432,9 +432,9 @@ export default function VolunteerDashboard() {
                           {d.quantity} {d.quantity_unit}
                         </div>
                         <div className="text-xs text-gray-400 mb-3 space-y-1">
-                          <div>⏰ Expires: {new Date(d.expiry).toLocaleDateString()}</div>
-                          <div>📦 From: {d.donor?.name || "Loading..."}</div>
-                          <div>🏠 To: {d.recipient?.name || "Loading..."}</div>
+                          <div> Expires: {new Date(d.expiry).toLocaleDateString()}</div>
+                          <div> From: {d.donor?.name || "Loading..."}</div>
+                          <div> To: {d.recipient?.name || "Loading..."}</div>
                         </div>
                         <button
                           onClick={() => handleDelivered(d.id)}
@@ -451,14 +451,14 @@ export default function VolunteerDashboard() {
               {/* Delivered (awaiting recipient confirm) */}
               <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-yellow-300">✅ Delivered</h3>
+                  <h3 className="text-xl font-semibold text-yellow-300"> Delivered</h3>
                   <span className="text-xs bg-green-600 text-white px-2 py-1 rounded-full">
                     {completedDeliveries.length}
                   </span>
                 </div>
                 {completedDeliveries.length === 0 ? (
                   <div className="text-center py-8">
-                    <div className="text-4xl mb-4">✅</div>
+                    <div className="text-4xl mb-4"></div>
                     <p className="text-gray-400">No delivered items awaiting confirmation</p>
                   </div>
                 ) : (
@@ -470,8 +470,8 @@ export default function VolunteerDashboard() {
                           {d.quantity} {d.quantity_unit}
                         </div>
                         <div className="text-xs text-gray-400 mb-2 space-y-1">
-                          <div>✅ Delivered: {new Date(d.updated_at || d.created_at).toLocaleDateString()}</div>
-                          <div>🔄 {d.donor?.name || "Unknown"} → {d.recipient?.name || "Unknown"}</div>
+                          <div> Delivered: {new Date(d.updated_at || d.created_at).toLocaleDateString()}</div>
+                          <div> {d.donor?.name || "Unknown"} → {d.recipient?.name || "Unknown"}</div>
                         </div>
                         <div className="text-xs bg-green-600/20 border border-green-600 text-green-300 px-2 py-1 rounded text-center font-medium">
                           Awaiting Recipient Confirmation
@@ -485,14 +485,14 @@ export default function VolunteerDashboard() {
               {/* Confirmed */}
               <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-yellow-300">🧾 Confirmed</h3>
+                  <h3 className="text-xl font-semibold text-yellow-300"> Confirmed</h3>
                   <span className="text-xs bg-emerald-600 text-white px-2 py-1 rounded-full">
                     {confirmedDeliveries.length}
                   </span>
                 </div>
                 {confirmedDeliveries.length === 0 ? (
                   <div className="text-center py-8">
-                    <div className="text-4xl mb-4">🧾</div>
+                    <div className="text-4xl mb-4"></div>
                     <p className="text-gray-400">No confirmed records yet</p>
                   </div>
                 ) : (
@@ -504,8 +504,8 @@ export default function VolunteerDashboard() {
                           {d.quantity} {d.quantity_unit}
                         </div>
                         <div className="text-xs text-gray-400 mb-2 space-y-1">
-                          <div>🧾 Confirmed: {new Date(d.updated_at || d.created_at).toLocaleDateString()}</div>
-                          <div>🔄 {d.donor?.name || "Unknown"} → {d.recipient?.name || "Unknown"}</div>
+                          <div> Confirmed: {new Date(d.updated_at || d.created_at).toLocaleDateString()}</div>
+                          <div> {d.donor?.name || "Unknown"} → {d.recipient?.name || "Unknown"}</div>
                         </div>
                         <div className="text-xs bg-emerald-600/20 border border-emerald-600 text-emerald-300 px-2 py-1 rounded text-center font-medium">
                           Recipient Confirmed
@@ -528,7 +528,7 @@ export default function VolunteerDashboard() {
             onClick={() => window.location.reload()}
             className="bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 text-black px-12 py-4 text-xl rounded-full font-extrabold shadow-2xl hover:from-yellow-500 hover:via-orange-600 hover:to-yellow-500 transition-all duration-300 transform hover:scale-110 hover:shadow-3xl"
           >
-            🔄 Refresh Deliveries
+             Refresh Deliveries
           </button>
           <p className="text-gray-400 text-sm mt-4">Last updated: {new Date().toLocaleTimeString()}</p>
         </div>

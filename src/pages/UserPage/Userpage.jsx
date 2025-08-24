@@ -191,7 +191,7 @@ export default function UserPage() {
           >
             Analytics
           </button>
-          <button className="hover:text-white">Green Score</button>
+         {/* <button className="hover:text-white">Green Score</button>*/}
           <button
             className="hover:text-white border border-yellow-400 rounded px-3 py-1 ml-4"
             onClick={handleLogout}
