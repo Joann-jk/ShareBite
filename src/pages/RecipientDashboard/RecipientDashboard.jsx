@@ -296,6 +296,7 @@ export default function RecipientDashboard() {
         }}
         onClick={() => setSelectedDonation(null)}
       >
+        
         <div
           className="bg-black border-2 border-yellow-400 rounded-xl shadow-2xl p-8 max-w-md w-full"
           onClick={(e) => e.stopPropagation()}

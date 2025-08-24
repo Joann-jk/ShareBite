@@ -173,30 +173,30 @@ export default function DonationForm() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-8 rounded-2xl shadow-lg w/full max-w-md space-y-6"
+        className="bg-black p-8 rounded-2xl shadow-lg w/full max-w-md space-y-6"
       >
-        <h2 className="text-2xl font-bold text-center">Donate Food</h2>
+        <h2 className="text-2xl font-bold text-center text-yellow-500">Donate Food</h2>
 
         {error && <p className="text-red-600 text-center">{error}</p>}
         {success && <p className="text-green-600 text-center">{success}</p>}
 
         {/* Food Type */}
         <div>
-          <label className="block mb-2 text-sm font-medium">Food Type</label>
+          <label className="block mb-2 text-sm font-medium text-yellow-500">Food Type</label>
           <input
             type="text"
             name="food_type"
             value={formData.food_type}
             onChange={handleChange}
             placeholder="e.g. Rice, Bread"
-            className="w-full p-2 border rounded-lg"
+            className="w-full p-2 border rounded-lg text-yellow-500"
             required
           />
         </div>
 
         {/* Quantity */}
         <div>
-          <label className="block mb-2 text-sm font-medium">Quantity</label>
+          <label className="block mb-2 text-sm font-medium text-yellow-500">Quantity</label>
           <input
             type="number"
             name="quantity"
@@ -204,19 +204,19 @@ export default function DonationForm() {
             value={formData.quantity}
             onChange={handleChange}
             placeholder="Enter quantity"
-            className="w-full p-2 border rounded-lg"
+            className="w-full p-2 border rounded-lg text-yellow-500"
             required
           />
         </div>
 
         {/* Quantity Unit */}
         <div>
-          <label className="block mb-2 text-sm font-medium">Quantity Unit</label>
+          <label className="block mb-2 text-sm font-medium text-yellow-500">Quantity Unit</label>
           <select
             name="quantity_unit"
             value={formData.quantity_unit}
             onChange={handleChange}
-            className="w-full p-2 border rounded-lg"
+            className="w-full p-2 border rounded-lg text-yellow-500"
             required
           >
             <option value="">Select unit</option>
@@ -230,12 +230,12 @@ export default function DonationForm() {
 
         {/* Acceptance */}
         <div>
-          <label className="block mb-2 text-sm font-medium">Food Acceptance Type</label>
+          <label className="block mb-2 text-sm font-medium text-yellow-500">Food Acceptance Type</label>
           <select
             name="acceptance"
             value={formData.acceptance}
             onChange={handleChange}
-            className="w-full p-2 border rounded-lg"
+            className="w-full p-2 border rounded-lg text-yellow-500"
             required
           >
             {acceptanceOptions.map((opt) => (
@@ -249,12 +249,12 @@ export default function DonationForm() {
         {/* Expiry (only for edible) */}
         {formData.acceptance === "edible" && (
           <div>
-            <label className="block mb-2 text-sm font-medium">Expiry</label>
+            <label className="block mb-2 text-sm font-medium text-yellow-500">Expiry</label>
             <select
               name="expiry"
               value={formData.expiry}
               onChange={handleChange}
-              className="w-full p-2 border rounded-lg"
+              className="w-full p-2 border rounded-lg text-yellow-500 bg-gray-800"
               required
             >
               <option value="">Select expiry time</option>
@@ -272,7 +272,7 @@ export default function DonationForm() {
                 value={formData.custom_expiry}
                 onChange={handleChange}
                 placeholder="e.g., 5 hours, 1 day, or 2025-08-23T22:00"
-                className="w-full mt-2 p-2 border rounded-lg"
+                className="w-full mt-2 p-2 border rounded-lg text-yellow-500"
                 required
               />
             )}
@@ -286,7 +286,7 @@ export default function DonationForm() {
             name="latitude"
             value={formData.latitude ?? ""}
             onChange={handleChange}
-            className="w-1/2 p-2 border rounded-lg"
+            className="w-1/2 p-2 border rounded-lg text-yellow-500"
             placeholder="Latitude"
             readOnly
           />
@@ -295,14 +295,14 @@ export default function DonationForm() {
             name="longitude"
             value={formData.longitude ?? ""}
             onChange={handleChange}
-            className="w-1/2 p-2 border rounded-lg"
+            className="w-1/2 p-2 border rounded-lg text-yellow-500"
             placeholder="Longitude"
             readOnly
           />
         </div>
-        {loadingLoc && <div className="text-sm text-gray-500">Getting location...</div>}
+        {loadingLoc && <div className="text-sm text-yellow-500">Getting location...</div>}
 
-        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+        <button type="submit" className="w-full bg-yellow-600 text-black py-2 rounded-lg hover:bg-yellow-300">
           Submit Donation
         </button>
       </form>
