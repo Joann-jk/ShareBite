@@ -1,230 +1,238 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../supabaseClient";
 import { useAuth } from "../../lib/AuthContext";
-import { useNavigate } from "react-router-dom";
 
 export default function VolunteerDashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [availableDeliveries, setAvailableDeliveries] = useState([]);
   const [acceptedDeliveries, setAcceptedDeliveries] = useState([]);
   const [pickedUpDeliveries, setPickedUpDeliveries] = useState([]);
   const [completedDeliveries, setCompletedDeliveries] = useState([]);
+  const [confirmedDeliveries, setConfirmedDeliveries] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch deliveries by status
+  // Helper to batch-hydrate donor/recipient for an array of donations
+  async function hydrateUsers(donations) {
+    const ids = new Set();
+    donations.forEach((d) => {
+      if (d?.donor_id) ids.add(d.donor_id);
+      if (d?.organisation_id) ids.add(d.organisation_id);
+    });
+    const userIds = Array.from(ids);
+    if (userIds.length === 0) return donations;
+
+    const { data: usersList, error } = await supabase
+      .from("users")
+      .select("id,name,address,latitude,longitude")
+      .in("id", userIds);
+
+    if (error || !usersList) return donations;
+
+    const map = new Map(usersList.map((u) => [u.id, u]));
+    return donations.map((d) => ({
+      ...d,
+      donor: map.get(d.donor_id) || null,
+      recipient: map.get(d.organisation_id) || null,
+    }));
+  }
+
+  // Initial fetch
   useEffect(() => {
-    async function fetchAllDeliveries() {
-      // TODO: Add volunteer_id field to donations table
-      // Available deliveries - claimed donations without volunteer assigned
-      const { data: availableData, error: availableError } = await supabase
+    if (!user?.id) return;
+
+    (async () => {
+      setLoading(true);
+
+      // Available for volunteers: claimed + volunteer_needed + no volunteer yet
+      const { data: avail, error: e1 } = await supabase
         .from("donations")
-        .select(`
-          *, 
-          donor:donor_id(name, address),
-          recipient:recipient_id(name, address)
-        `)
+        .select("*")
         .eq("status", "claimed")
-        .is("volunteer_id", null); // TODO: Replace with proper volunteer_id field
-      
-      if (availableError) console.error("Available fetch error:", availableError);
-      setAvailableDeliveries(availableData || []);
+        .eq("volunteer_needed", true)
+        .is("volunteer_id", null);
 
-      // My accepted deliveries
-      if (user?.id) {
-        const { data: acceptedData, error: acceptedError } = await supabase
-          .from("donations")
-          .select(`
-            *, 
-            donor:donor_id(name, address),
-            recipient:recipient_id(name, address)
-          `)
-          .eq("status", "accepted")
-          .eq("volunteer_id", user.id); // TODO: Update schema to use volunteer_id
-        
-        if (acceptedError) console.error("Accepted fetch error:", acceptedError);
-        setAcceptedDeliveries(acceptedData || []);
+      const { data: acc, error: e2 } = await supabase
+        .from("donations")
+        .select("*")
+        .eq("status", "accepted")
+        .eq("volunteer_id", user.id);
 
-        // My picked up deliveries
-        const { data: pickedData, error: pickedError } = await supabase
-          .from("donations")
-          .select(`
-            *, 
-            donor:donor_id(name, address),
-            recipient:recipient_id(name, address)
-          `)
-          .eq("status", "picked")
-          .eq("volunteer_id", user.id); // TODO: Update schema to use volunteer_id
-        
-        if (pickedError) console.error("Picked fetch error:", pickedError);
-        setPickedUpDeliveries(pickedData || []);
+      const { data: pk, error: e3 } = await supabase
+        .from("donations")
+        .select("*")
+        .eq("status", "picked")
+        .eq("volunteer_id", user.id);
 
-        // My completed deliveries
-        const { data: deliveredData, error: deliveredError } = await supabase
-          .from("donations")
-          .select(`
-            *, 
-            donor:donor_id(name, address),
-            recipient:recipient_id(name, address)
-          `)
-          .eq("status", "delivered")
-          .eq("volunteer_id", user.id); // TODO: Update schema to use volunteer_id
-        
-        if (deliveredError) console.error("Delivered fetch error:", deliveredError);
-        setCompletedDeliveries(deliveredData || []);
-      }
-    }
-    fetchAllDeliveries();
-  }, [user]);
+      const { data: done, error: e4 } = await supabase
+        .from("donations")
+        .select("*")
+        .eq("status", "delivered")
+        .eq("volunteer_id", user.id);
 
-  // Real-time sync for all status changes
+      const { data: conf, error: e5 } = await supabase
+        .from("donations")
+        .select("*")
+        .eq("status", "confirmed")
+        .eq("volunteer_id", user.id);
+
+      // Hydrate donor/recipient in one go for each list
+      const [hAvail, hAcc, hPk, hDone, hConf] = await Promise.all([
+        hydrateUsers(avail || []),
+        hydrateUsers(acc || []),
+        hydrateUsers(pk || []),
+        hydrateUsers(done || []),
+        hydrateUsers(conf || []),
+      ]);
+
+      if (!e1) setAvailableDeliveries(hAvail);
+      if (!e2) setAcceptedDeliveries(hAcc);
+      if (!e3) setPickedUpDeliveries(hPk);
+      if (!e4) setCompletedDeliveries(hDone);
+      if (!e5) setConfirmedDeliveries(hConf);
+
+      setLoading(false);
+    })();
+  }, [user?.id]);
+
+  // Realtime
   useEffect(() => {
-    const channel = supabase
-      .channel("donations-realtime-volunteer")
+    if (!user?.id) return;
+
+    const ch = supabase
+      .channel("donations-volunteer")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "donations" },
+        {
+          event: "*",
+          schema: "public",
+          table: "donations",
+          filter: "", // receive all and filter in handler
+        },
         async (payload) => {
-          const newDonation = payload.new;
-          
-          // TODO: Optimize these queries - consider using joins or caching
-          // Fetch donor and recipient details for real-time updates
-          let donorData = null;
-          let recipientData = null;
-          
-          if (newDonation.donor_id) {
-            const { data } = await supabase
-              .from("users")
-              .select("name, address")
-              .eq("id", newDonation.donor_id)
-              .single();
-            donorData = data;
-          }
+          const row = payload.new ?? payload.old;
+          if (!row) return;
 
-          if (newDonation.recipient_id) { // TODO: Update to use recipient_id instead of organisation_id
-            const { data } = await supabase
-              .from("users")
-              .select("name, address")
-              .eq("id", newDonation.recipient_id)
-              .single();
-            recipientData = data;
-          }
+          // join donor/org for the changed row to keep UI hydrated
+          const { data: donor } = row.donor_id
+            ? await supabase
+                .from("users")
+                .select("name,address,latitude,longitude")
+                .eq("id", row.donor_id)
+                .single()
+            : { data: null };
+          const { data: recipient } = row.organisation_id
+            ? await supabase
+                .from("users")
+                .select("name,address,latitude,longitude")
+                .eq("id", row.organisation_id)
+                .single()
+            : { data: null };
 
-          const donationWithDetails = {
-            ...newDonation,
-            donor: donorData,
-            recipient: recipientData // TODO: Update field name from organisation to recipient
+          const d = { ...(payload.new || row), donor, recipient };
+
+          // helpers
+          const upsert = (arr, item) => {
+            const idx = arr.findIndex((x) => x.id === item.id);
+            if (idx === -1) return [item, ...arr];
+            const copy = [...arr];
+            copy[idx] = item;
+            return copy;
           };
+          const remove = (arr, id) => arr.filter((x) => x.id !== id);
 
-          // Handle available deliveries (claimed status, no volunteer assigned)
-          if (newDonation.status === "claimed" && !newDonation.volunteer_id) { // TODO: Use volunteer_id field
-            setAvailableDeliveries((prev) => {
-              const filtered = prev.filter((d) => d.id !== newDonation.id);
-              return [donationWithDetails, ...filtered];
-            });
+          // Availability for volunteer list
+          if (d.status === "claimed" && d.volunteer_needed === true && !d.volunteer_id) {
+            setAvailableDeliveries((prev) => upsert(prev, d));
           } else {
-            setAvailableDeliveries((prev) => prev.filter((d) => d.id !== newDonation.id));
+            setAvailableDeliveries((prev) => remove(prev, d.id));
           }
 
-          // Handle volunteer's deliveries
-          if (user?.id && newDonation.volunteer_id === user.id) { // TODO: Use volunteer_id field
-            if (newDonation.status === "accepted") {
-              setAcceptedDeliveries((prev) => {
-                const filtered = prev.filter((d) => d.id !== newDonation.id);
-                return [donationWithDetails, ...filtered];
-              });
-              setPickedUpDeliveries((prev) => prev.filter((d) => d.id !== newDonation.id));
-              setCompletedDeliveries((prev) => prev.filter((d) => d.id !== newDonation.id));
-            } else if (newDonation.status === "picked") {
-              setPickedUpDeliveries((prev) => {
-                const filtered = prev.filter((d) => d.id !== newDonation.id);
-                return [donationWithDetails, ...filtered];
-              });
-              setAcceptedDeliveries((prev) => prev.filter((d) => d.id !== newDonation.id));
-              setCompletedDeliveries((prev) => prev.filter((d) => d.id !== newDonation.id));
-            } else if (newDonation.status === "delivered") {
-              setCompletedDeliveries((prev) => {
-                const filtered = prev.filter((d) => d.id !== newDonation.id);
-                return [donationWithDetails, ...filtered];
-              });
-              setAcceptedDeliveries((prev) => prev.filter((d) => d.id !== newDonation.id));
-              setPickedUpDeliveries((prev) => prev.filter((d) => d.id !== newDonation.id));
-            } else {
-              // Remove from all volunteer lists if status changed to something else
-              setAcceptedDeliveries((prev) => prev.filter((d) => d.id !== newDonation.id));
-              setPickedUpDeliveries((prev) => prev.filter((d) => d.id !== newDonation.id));
-              setCompletedDeliveries((prev) => prev.filter((d) => d.id !== newDonation.id));
-            }
+          // My lists (volunteer perspective)
+          const mine = d.volunteer_id === user.id;
+
+          if (!mine) {
+            setAcceptedDeliveries((p) => remove(p, d.id));
+            setPickedUpDeliveries((p) => remove(p, d.id));
+            setCompletedDeliveries((p) => remove(p, d.id));
+            setConfirmedDeliveries((p) => remove(p, d.id));
+            return;
+          }
+
+          if (d.status === "accepted") {
+            setAcceptedDeliveries((p) => upsert(p, d));
+            setPickedUpDeliveries((p) => remove(p, d.id));
+            setCompletedDeliveries((p) => remove(p, d.id));
+            setConfirmedDeliveries((p) => remove(p, d.id));
+          } else if (d.status === "picked") {
+            setPickedUpDeliveries((p) => upsert(p, d));
+            setAcceptedDeliveries((p) => remove(p, d.id));
+            setCompletedDeliveries((p) => remove(p, d.id));
+            setConfirmedDeliveries((p) => remove(p, d.id));
+          } else if (d.status === "delivered") {
+            setCompletedDeliveries((p) => upsert(p, d));
+            setAcceptedDeliveries((p) => remove(p, d.id));
+            setPickedUpDeliveries((p) => remove(p, d.id));
+            setConfirmedDeliveries((p) => remove(p, d.id));
+          } else if (d.status === "confirmed") {
+            setConfirmedDeliveries((p) => upsert(p, d));
+            setAcceptedDeliveries((p) => remove(p, d.id));
+            setPickedUpDeliveries((p) => remove(p, d.id));
+            setCompletedDeliveries((p) => remove(p, d.id));
+          } else {
+            // any other status: remove from my lists
+            setAcceptedDeliveries((p) => remove(p, d.id));
+            setPickedUpDeliveries((p) => remove(p, d.id));
+            setCompletedDeliveries((p) => remove(p, d.id));
+            setConfirmedDeliveries((p) => remove(p, d.id));
           }
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(ch);
     };
-  }, [user]);
+  }, [user?.id]);
 
-  // Accept a delivery - assign volunteer to the donation
-  async function handleAccept(donationId) {
-    if (!user?.id) return;
-    
-    const { error } = await supabase
-      .from("donations")
-      .update({ 
-        status: "accepted", 
-        volunteer_id: user.id, // TODO: Add volunteer_id field to donations table
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", donationId)
-      .eq("status", "claimed") // Prevent race conditions
-      .is("volunteer_id", null); // Ensure no volunteer assigned yet
-    
-    if (error) {
-      alert("Error accepting delivery: " + error.message);
-      console.error("Accept error:", error);
-    }
+  // Actions via RPC
+  async function handleAccept(id) {
+  const { data, error } = await supabase.rpc("volunteer_accept", { _donation_id: id });
+  if (error) {
+    alert(error.message || "Accept failed");
+  } else if (!data || data.length === 0) {
+    alert("This delivery could not be accepted. It may have already been accepted or does not meet criteria.");
+  } else {
+    // Optimistically update UI
+    setAvailableDeliveries((prev) => prev.filter(x => x.id !== id));
+    setAcceptedDeliveries((prev) => [data[0], ...prev]);
   }
+}
 
-  // Mark as picked up
-  async function handlePickup(donationId) {
-    if (!user?.id) return;
-    
-    const { error } = await supabase
-      .from("donations")
-      .update({ 
-        status: "picked",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", donationId)
-      .eq("volunteer_id", user.id) // TODO: Use volunteer_id field
-      .eq("status", "accepted"); // Ensure correct status transition
-    
-    if (error) {
-      alert("Error marking as picked up: " + error.message);
-      console.error("Pickup error:", error);
-    }
+  async function handlePickup(id) {
+  const { data, error } = await supabase.rpc("mark_picked", { _donation_id: id });
+  if (error) {
+    alert(error.message || "Pickup failed");
+  } else if (!data || data.length === 0) {
+    alert("Could not mark as picked up. It may have already been picked.");
+  } else {
+    // Optimistically update UI
+    setAcceptedDeliveries((prev) => prev.filter(x => x.id !== id));
+    setPickedUpDeliveries((prev) => [data[0], ...prev]);
   }
+}
 
-  // Mark as delivered
-  async function handleDelivered(donationId) {
-    if (!user?.id) return;
-    
-    const { error } = await supabase
-      .from("donations")
-      .update({ 
-        status: "delivered",
-        delivered_at: new Date().toISOString(), // TODO: Add delivered_at timestamp field
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", donationId)
-      .eq("volunteer_id", user.id) // TODO: Use volunteer_id field
-      .eq("status", "picked"); // Ensure correct status transition
-    
-    if (error) {
-      alert("Error marking as delivered: " + error.message);
-      console.error("Delivery error:", error);
-    }
+  async function handleDelivered(id) {
+  const { data, error } = await supabase.rpc("mark_delivered", { _donation_id: id });
+  if (error) {
+    alert(error.message || "Delivery failed");
+  } else if (!data || data.length === 0) {
+    alert("Could not mark as delivered. It may have already been delivered.");
+  } else {
+    // Optimistically update UI
+    setPickedUpDeliveries((prev) => prev.filter(x => x.id !== id));
+    setCompletedDeliveries((prev) => [data[0], ...prev]);
   }
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800 text-yellow-400">
@@ -246,7 +254,7 @@ export default function VolunteerDashboard() {
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* Hero */}
       <header className="text-center py-20 px-4">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-extrabold mb-6 bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 bg-clip-text text-transparent">
@@ -269,7 +277,7 @@ export default function VolunteerDashboard() {
         </div>
       </header>
 
-      {/* Available Deliveries Section */}
+      {/* Available Deliveries */}
       <section className="px-4 pb-12">
         <div className="max-w-7xl mx-auto">
           <div className="bg-gray-900/80 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-gray-700/50">
@@ -281,8 +289,10 @@ export default function VolunteerDashboard() {
                 {availableDeliveries.length} opportunities
               </div>
             </div>
-            
-            {availableDeliveries.length === 0 ? (
+
+            {loading ? (
+              <p className="text-gray-400">Loading…</p>
+            ) : availableDeliveries.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-24 h-24 mx-auto mb-6 bg-gray-800 rounded-full flex items-center justify-center">
                   <span className="text-3xl">📦</span>
@@ -301,7 +311,7 @@ export default function VolunteerDashboard() {
                         <span className="text-sm bg-gray-700 px-2 py-1 rounded">{d.quantity_unit}</span>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-3 mb-6 text-sm">
                       <div className="flex items-center space-x-2">
                         <span className="w-2 h-2 bg-red-500 rounded-full"></span>
@@ -314,28 +324,31 @@ export default function VolunteerDashboard() {
                           })}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
                         <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                         <span className="text-gray-300">From: {d.donor?.name || "Loading..."}</span>
                       </div>
-                      
+
                       <div className="flex items-center space-x-2">
                         <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                         <span className="text-gray-300">To: {d.recipient?.name || "Loading..."}</span>
                       </div>
-                      
+
                       <div className="text-xs text-gray-400 mt-2">
-                        📍 {d.donor?.address || "Address loading..."}
+                        📍 Donor: {d.donor?.address || "Loading..."}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        📍 Recipient: {d.recipient?.address || "Loading..."}
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between mb-4">
                       <span className="inline-block px-3 py-1 bg-orange-600/20 border border-orange-600 text-orange-300 text-xs rounded-full font-medium">
-                        Ready for Pickup
+                        Volunteer Requested
                       </span>
                     </div>
-                    
+
                     <button
                       onClick={() => handleAccept(d.id)}
                       className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-black py-3 px-6 rounded-lg font-bold hover:from-yellow-500 hover:to-orange-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
@@ -350,17 +363,16 @@ export default function VolunteerDashboard() {
         </div>
       </section>
 
-      {/* My Deliveries Section */}
+      {/* My Delivery Pipeline */}
       <section className="px-4 pb-12">
         <div className="max-w-7xl mx-auto">
           <div className="bg-gray-900/80 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-gray-700/50">
             <h2 className="text-3xl font-bold mb-8 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
               My Delivery Pipeline
             </h2>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
-              {/* Accepted Deliveries */}
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+              {/* Accepted */}
               <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-semibold text-yellow-300">📋 Accepted</h3>
@@ -368,7 +380,6 @@ export default function VolunteerDashboard() {
                     {acceptedDeliveries.length}
                   </span>
                 </div>
-                
                 {acceptedDeliveries.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="text-4xl mb-4">📋</div>
@@ -399,7 +410,7 @@ export default function VolunteerDashboard() {
                 )}
               </div>
 
-              {/* Picked Up Deliveries */}
+              {/* In Transit */}
               <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-semibold text-yellow-300">🚚 In Transit</h3>
@@ -407,7 +418,6 @@ export default function VolunteerDashboard() {
                     {pickedUpDeliveries.length}
                   </span>
                 </div>
-                
                 {pickedUpDeliveries.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="text-4xl mb-4">🚚</div>
@@ -438,19 +448,18 @@ export default function VolunteerDashboard() {
                 )}
               </div>
 
-              {/* Completed Deliveries */}
+              {/* Delivered (awaiting recipient confirm) */}
               <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-yellow-300">✅ Completed</h3>
+                  <h3 className="text-xl font-semibold text-yellow-300">✅ Delivered</h3>
                   <span className="text-xs bg-green-600 text-white px-2 py-1 rounded-full">
                     {completedDeliveries.length}
                   </span>
                 </div>
-                
                 {completedDeliveries.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="text-4xl mb-4">✅</div>
-                    <p className="text-gray-400">No completed deliveries yet</p>
+                    <p className="text-gray-400">No delivered items awaiting confirmation</p>
                   </div>
                 ) : (
                   <div className="space-y-4 max-h-96 overflow-y-auto">
@@ -465,7 +474,41 @@ export default function VolunteerDashboard() {
                           <div>🔄 {d.donor?.name || "Unknown"} → {d.recipient?.name || "Unknown"}</div>
                         </div>
                         <div className="text-xs bg-green-600/20 border border-green-600 text-green-300 px-2 py-1 rounded text-center font-medium">
-                          Successfully Delivered
+                          Awaiting Recipient Confirmation
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Confirmed */}
+              <div className="bg-gray-800/50 p-6 rounded-xl border border-gray-700">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-yellow-300">🧾 Confirmed</h3>
+                  <span className="text-xs bg-emerald-600 text-white px-2 py-1 rounded-full">
+                    {confirmedDeliveries.length}
+                  </span>
+                </div>
+                {confirmedDeliveries.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="text-4xl mb-4">🧾</div>
+                    <p className="text-gray-400">No confirmed records yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {confirmedDeliveries.map((d) => (
+                      <div key={d.id} className="border border-gray-600 p-4 rounded-lg bg-gray-700/50">
+                        <div className="font-bold text-lg text-yellow-300 mb-2">{d.food_type}</div>
+                        <div className="text-sm text-gray-300 mb-2">
+                          {d.quantity} {d.quantity_unit}
+                        </div>
+                        <div className="text-xs text-gray-400 mb-2 space-y-1">
+                          <div>🧾 Confirmed: {new Date(d.updated_at || d.created_at).toLocaleDateString()}</div>
+                          <div>🔄 {d.donor?.name || "Unknown"} → {d.recipient?.name || "Unknown"}</div>
+                        </div>
+                        <div className="text-xs bg-emerald-600/20 border border-emerald-600 text-emerald-300 px-2 py-1 rounded text-center font-medium">
+                          Recipient Confirmed
                         </div>
                       </div>
                     ))}
@@ -473,11 +516,12 @@ export default function VolunteerDashboard() {
                 )}
               </div>
             </div>
+
           </div>
         </div>
       </section>
 
-      {/* Action Section */}
+      {/* Action */}
       <section className="px-4 pb-16">
         <div className="max-w-4xl mx-auto text-center">
           <button

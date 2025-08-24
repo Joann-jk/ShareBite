@@ -27,6 +27,7 @@ export default function RecipientDashboard() {
   const [claimed, setClaimed] = useState([]);
   const [picked, setPicked] = useState([]);
   const [delivered, setDelivered] = useState([]);
+  const [confirmed, setConfirmed] = useState([]);
 
   // UI state
   const [selectedDonation, setSelectedDonation] = useState(null);
@@ -34,6 +35,7 @@ export default function RecipientDashboard() {
   const [claimingId, setClaimingId] = useState(null);
   const [pickingId, setPickingId] = useState(null);
   const [deliveringId, setDeliveringId] = useState(null);
+  const [confirmingId, setConfirmingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   const orgLat = user?.latitude ?? null;
@@ -44,6 +46,7 @@ export default function RecipientDashboard() {
   const canNonEdible = acceptanceType === "non-edible" || acceptanceType === "both";
   const canEdible = acceptanceType === "edible" || acceptanceType === "both";
 
+  // Initial fetch
   useEffect(() => {
     let cancelled = false;
 
@@ -77,11 +80,11 @@ export default function RecipientDashboard() {
         : Promise.resolve({ data: [], error: null });
 
       const deliveredPromise = orgId
-        ? supabase
-            .from("donations")
-            .select("*")
-            .eq("status", "delivered")
-            .eq("organisation_id", orgId)
+        ? supabase.from("donations").select("*").eq("status", "delivered").eq("organisation_id", orgId)
+        : Promise.resolve({ data: [], error: null });
+
+      const confirmedPromise = orgId
+        ? supabase.from("donations").select("*").eq("status", "confirmed").eq("organisation_id", orgId)
         : Promise.resolve({ data: [], error: null });
 
       const [
@@ -90,7 +93,8 @@ export default function RecipientDashboard() {
         { data: claimedData, error: claimedErr },
         { data: pickedData, error: pickedErr },
         { data: deliveredData, error: deliveredErr },
-      ] = await Promise.all([postedPromise, divertedPromise, claimedPromise, pickedPromise, deliveredPromise]);
+        { data: confirmedData, error: confirmedErr },
+      ] = await Promise.all([postedPromise, divertedPromise, claimedPromise, pickedPromise, deliveredPromise, confirmedPromise]);
 
       if (cancelled) return;
 
@@ -99,12 +103,14 @@ export default function RecipientDashboard() {
       if (claimedErr) setErrorMsg((e) => e || claimedErr.message);
       if (pickedErr) setErrorMsg((e) => e || pickedErr.message);
       if (deliveredErr) setErrorMsg((e) => e || deliveredErr.message);
+      if (confirmedErr) setErrorMsg((e) => e || confirmedErr.message);
 
       setPosted(postedData || []);
       setDiverted(divertedData || []);
       setClaimed(claimedData || []);
       setPicked(pickedData || []);
       setDelivered(deliveredData || []);
+      setConfirmed(confirmedData || []);
       setInitialLoading(false);
     }
 
@@ -113,8 +119,9 @@ export default function RecipientDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [orgId, acceptanceType]);
+  }, [orgId, acceptanceType, canEdible, canNonEdible]);
 
+  // Realtime updates
   useEffect(() => {
     const channel = supabase
       .channel("donations-realtime-recipient")
@@ -133,6 +140,7 @@ export default function RecipientDashboard() {
             setClaimed((prev) => prev.filter((d) => d.id !== id));
             setPicked((prev) => prev.filter((d) => d.id !== id));
             setDelivered((prev) => prev.filter((d) => d.id !== id));
+            setConfirmed((prev) => prev.filter((d) => d.id !== id));
             return;
           }
 
@@ -161,6 +169,7 @@ export default function RecipientDashboard() {
             setClaimed((prev) => prev.filter((x) => x.id !== d.id));
             setPicked((prev) => prev.filter((x) => x.id !== d.id));
             setDelivered((prev) => prev.filter((x) => x.id !== d.id));
+            setConfirmed((prev) => prev.filter((x) => x.id !== d.id));
             return;
           }
 
@@ -168,18 +177,29 @@ export default function RecipientDashboard() {
             setClaimed((prev) => [d, ...prev.filter((x) => x.id !== d.id)]);
             setPicked((prev) => prev.filter((x) => x.id !== d.id));
             setDelivered((prev) => prev.filter((x) => x.id !== d.id));
+            setConfirmed((prev) => prev.filter((x) => x.id !== d.id));
+          } else if (d.status === "accepted") {
+            setClaimed((prev) => [d, ...prev.filter((x) => x.id !== d.id)]);
           } else if (d.status === "picked") {
             setPicked((prev) => [d, ...prev.filter((x) => x.id !== d.id)]);
             setClaimed((prev) => prev.filter((x) => x.id !== d.id));
             setDelivered((prev) => prev.filter((x) => x.id !== d.id));
+            setConfirmed((prev) => prev.filter((x) => x.id !== d.id));
           } else if (d.status === "delivered") {
             setDelivered((prev) => [d, ...prev.filter((x) => x.id !== d.id)]);
             setClaimed((prev) => prev.filter((x) => x.id !== d.id));
             setPicked((prev) => prev.filter((x) => x.id !== d.id));
+            setConfirmed((prev) => prev.filter((x) => x.id !== d.id));
+          } else if (d.status === "confirmed") {
+            setConfirmed((prev) => [d, ...prev.filter((x) => x.id !== d.id)]);
+            setClaimed((prev) => prev.filter((x) => x.id !== d.id));
+            setPicked((prev) => prev.filter((x) => x.id !== d.id));
+            setDelivered((prev) => prev.filter((x) => x.id !== d.id));
           } else {
             setClaimed((prev) => prev.filter((x) => x.id !== d.id));
             setPicked((prev) => prev.filter((x) => x.id !== d.id));
             setDelivered((prev) => prev.filter((x) => x.id !== d.id));
+            setConfirmed((prev) => prev.filter((x) => x.id !== d.id));
           }
         }
       )
@@ -190,18 +210,16 @@ export default function RecipientDashboard() {
     };
   }, [orgId, canEdible, canNonEdible]);
 
+  // Actions
+
   async function handleClaim(donationId) {
     if (!orgId) return;
     setErrorMsg("");
     setClaimingId(donationId);
     try {
+      const needVolunteer = window.confirm("Need a volunteer to pick up?");
       const { data, error } = await supabase
-        .from("donations")
-        .update({ status: "claimed", organisation_id: orgId })
-        .eq("id", donationId)
-        .in("status", ["posted", "diverted"])
-        .is("organisation_id", null)
-        .select("*")
+        .rpc("recipient_claim", { _donation_id: donationId, _need_volunteer: needVolunteer })
         .maybeSingle();
 
       if (error) {
@@ -221,11 +239,7 @@ export default function RecipientDashboard() {
     setErrorMsg("");
     setPickingId(donationId);
     try {
-      const { error } = await supabase
-        .from("donations")
-        .update({ status: "picked" })
-        .eq("id", donationId)
-        .eq("organisation_id", orgId);
+      const { error } = await supabase.rpc("mark_picked", { _donation_id: donationId });
       if (error) setErrorMsg(error.message || "Failed to mark as picked up");
     } finally {
       setPickingId(null);
@@ -237,14 +251,22 @@ export default function RecipientDashboard() {
     setErrorMsg("");
     setDeliveringId(donationId);
     try {
-      const { error } = await supabase
-        .from("donations")
-        .update({ status: "delivered" })
-        .eq("id", donationId)
-        .eq("organisation_id", orgId);
+      const { error } = await supabase.rpc("mark_delivered", { _donation_id: donationId });
       if (error) setErrorMsg(error.message || "Failed to mark as delivered");
     } finally {
       setDeliveringId(null);
+    }
+  }
+
+  async function handleConfirm(donationId) {
+    if (!orgId) return;
+    setErrorMsg("");
+    setConfirmingId(donationId);
+    try {
+      const { error } = await supabase.rpc("recipient_confirm_delivery", { _donation_id: donationId });
+      if (error) setErrorMsg(error.message || "Failed to confirm delivery");
+    } finally {
+      setConfirmingId(null);
     }
   }
 
@@ -252,11 +274,6 @@ export default function RecipientDashboard() {
     if (!selectedDonation) return null;
 
     const { latitude, longitude, expiry, food_type, quantity, quantity_unit, status } = selectedDonation;
-
-    let distance =
-      orgLat && orgLng && latitude != null && longitude != null
-        ? getDistanceFromLatLonInKm(orgLat, orgLng, latitude, longitude).toFixed(2)
-        : null;
 
     const googleMapUrl =
       orgLat && orgLng && latitude != null && longitude != null
@@ -349,26 +366,23 @@ export default function RecipientDashboard() {
     }
   }
 
-  // Implement logout handler
+  // Logout handler
   const handleLogout = async () => {
     if (logout) {
       await logout();
-      // Optionally, redirect to login page here if you use react-router
-      // window.location.href = "/login";
     } else {
       await supabase.auth.signOut();
-      // window.location.href = "/login";
     }
   };
 
-  // Redirect logic AFTER all hooks
+  // Redirect if not recipient
   if (user && user.role !== "recipient") {
     return <Navigate to="/redirect" replace />;
   }
 
   return (
     <div className="p-6 min-h-screen bg-black text-gray-100">
-      {/* Logout Button */}
+      {/* Logout */}
       <div className="flex justify-end mb-4">
         <button
           className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
@@ -377,7 +391,8 @@ export default function RecipientDashboard() {
           Logout
         </button>
       </div>
-
+      
+       <h1 className="text-5xl font-bold mb-3 text-center text-yellow-400">Welcome {user?.name}</h1>
       <h1 className="text-3xl font-bold mb-2 text-yellow-400">Nearby Donations</h1>
       <p className="text-sm text-gray-300 mb-4">
         View only the donations your organisation accepts. Non-edible organisations also see diverted items.
@@ -389,7 +404,7 @@ export default function RecipientDashboard() {
         </div>
       )}
 
-      {/* Posted (filtered by org acceptance) */}
+      {/* Posted */}
       <h2 className="text-xl font-semibold mb-3 text-yellow-400">Posted</h2>
       {initialLoading ? (
         <p className="text-gray-400">Loading…</p>
@@ -423,7 +438,7 @@ export default function RecipientDashboard() {
         </ul>
       )}
 
-      {/* Claimed Donations */}
+      {/* Claimed */}
       <h2 className="text-2xl font-bold mt-8 mb-4 text-yellow-400">Claimed Donations</h2>
       {claimed.length === 0 ? (
         <p className="text-gray-400">No claimed donations yet.</p>
@@ -438,23 +453,31 @@ export default function RecipientDashboard() {
               <h3 className="font-semibold text-lg text-yellow-400">{d.food_type}</h3>
               <p className="text-gray-300">Quantity: {d.quantity} {d.quantity_unit}</p>
               <p className="text-gray-300">Expires: {formatExpiry(d.expiry)}</p>
-              <p className="text-gray-300">Status: <span className="text-yellow-300">{d.status}</span></p>
-              <button
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  await handlePicked(d.id);
-                }}
-                disabled={pickingId === d.id}
-                className="mt-2 px-3 py-1 bg-blue-600 text-white font-semibold rounded hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {pickingId === d.id ? "Updating…" : "Picked Up"}
-              </button>
+              <p className="text-gray-300">
+                Status: <span className="text-yellow-300">{d.status}</span>
+                {d.volunteer_needed ? <span className="ml-2 text-xs bg-orange-600/30 text-orange-300 px-2 py-0.5 rounded">Volunteer Requested</span> : null}
+              </p>
+
+              {!d.volunteer_needed ? (
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    await handlePicked(d.id);
+                  }}
+                  disabled={pickingId === d.id}
+                  className="mt-2 px-3 py-1 bg-blue-600 text-white font-semibold rounded hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {pickingId === d.id ? "Updating…" : "Picked Up"}
+                </button>
+              ) : (
+                <p className="mt-2 text-xs text-gray-400">Waiting for volunteer acceptance/pickup…</p>
+              )}
             </li>
           ))}
         </ul>
       )}
 
-      {/* Picked Donations */}
+      {/* Picked */}
       <h2 className="text-2xl font-bold mt-8 mb-4 text-yellow-400">Picked Up Donations</h2>
       {picked.length === 0 ? (
         <p className="text-gray-400">No picked up donations yet.</p>
@@ -470,28 +493,67 @@ export default function RecipientDashboard() {
               <p className="text-gray-300">Quantity: {d.quantity} {d.quantity_unit}</p>
               <p className="text-gray-300">Expires: {formatExpiry(d.expiry)}</p>
               <p className="text-gray-300">Status: <span className="text-yellow-300">{d.status}</span></p>
-              <button
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  await handleDelivered(d.id);
-                }}
-                disabled={deliveringId === d.id}
-                className="mt-2 px-3 py-1 bg-purple-600 text-white font-semibold rounded hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {deliveringId === d.id ? "Updating…" : "Delivered"}
-              </button>
+
+              {!d.volunteer_needed ? (
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    await handleDelivered(d.id);
+                  }}
+                  disabled={deliveringId === d.id}
+                  className="mt-2 px-3 py-1 bg-purple-600 text-white font-semibold rounded hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {deliveringId === d.id ? "Updating…" : "Delivered"}
+                </button>
+              ) : (
+                <p className="mt-2 text-xs text-gray-400">Volunteer will complete delivery.</p>
+              )}
             </li>
           ))}
         </ul>
       )}
 
-      {/* Delivered Donations */}
+      {/* Delivered */}
       <h2 className="text-2xl font-bold mt-8 mb-4 text-yellow-400">Delivered Donations</h2>
       {delivered.length === 0 ? (
         <p className="text-gray-400">No delivered donations yet.</p>
       ) : (
         <ul className="space-y-4">
           {delivered.map((d) => (
+            <li
+              key={d.id}
+              className="p-4 border-2 border-yellow-500/30 rounded-lg shadow-md bg-gray-900 hover:bg-gray-800 cursor-pointer hover:border-yellow-400 transition-all"
+              onClick={() => setSelectedDonation(d)}
+            >
+              <h3 className="font-semibold text-lg text-yellow-400">{d.food_type}</h3>
+              <p className="text-gray-300">Quantity: {d.quantity} {d.quantity_unit}</p>
+              <p className="text-gray-300">Expires: {formatExpiry(d.expiry)}</p>
+              <p className="text-gray-300">Status: <span className="text-yellow-300">{d.status}</span></p>
+
+              {d.volunteer_needed ? (
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    await handleConfirm(d.id);
+                  }}
+                  disabled={confirmingId === d.id}
+                  className="mt-2 px-3 py-1 bg-green-600 text-white font-semibold rounded hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {confirmingId === d.id ? "Confirming…" : "Confirm Delivery"}
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Confirmed */}
+      <h2 className="text-2xl font-bold mt-8 mb-4 text-yellow-400">Confirmed Deliveries</h2>
+      {confirmed.length === 0 ? (
+        <p className="text-gray-400">No confirmed deliveries yet.</p>
+      ) : (
+        <ul className="space-y-4">
+          {confirmed.map((d) => (
             <li
               key={d.id}
               className="p-4 border-2 border-yellow-500/30 rounded-lg shadow-md bg-gray-900 hover:bg-gray-800 cursor-pointer hover:border-yellow-400 transition-all"
